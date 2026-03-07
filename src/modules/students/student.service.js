@@ -110,7 +110,7 @@ console.log("batch of the batch",JSON.stringify(batch,null,2))
   async getStudentById(id) {
     const student = await Student.findByPk(id);
     if (!student) throw new Error('Student not found');
-    return student;
+    return student;p
   }
 
   async updateStudent(id, data) {
