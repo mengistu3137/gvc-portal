@@ -23,9 +23,16 @@ export const createUser = async (req, res, next) => {
 
 export const updateUser = async (req, res, next) => {
   try {
+    // req.params.id comes from the URL /:id
     const user = await AuthService.updateUser(req.params.id, req.body);
-    res.json({ success: true, data: user });
-  } catch (error) { next(error); }
+    res.json({ 
+      success: true, 
+      message: "User updated successfully", 
+      data: user 
+    });
+  } catch (error) { 
+    next(error); 
+  }
 };
 
 export const deleteUser = async (req, res, next) => {
