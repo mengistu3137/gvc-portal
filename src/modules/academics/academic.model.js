@@ -33,7 +33,7 @@ Level.init({
 export class Module extends Model {}
 Module.init({
   module_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  m_code: { type: DataTypes.STRING(60), allowNull: false },
+  m_code: { type: DataTypes.STRING(60), allowNull: false, unique: true },
   occupation_id: { type: DataTypes.INTEGER, allowNull: false },
 
 

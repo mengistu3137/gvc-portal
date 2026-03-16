@@ -1,6 +1,7 @@
 import argon2 from 'argon2';
 import sequelize from './database.js';
 import { UserAccount, Role, Permission } from '../modules/auth/auth.model.js';
+import { Person } from '../modules/persons/person.model.js';
 
 const seedDatabase = async () => {
   try {
@@ -81,12 +82,12 @@ const seedDatabase = async () => {
 
     // 6. User Data for Testing PFSS
     const usersToSeed = [
-      { email: 'admin@gvc.edu', status: 'ACTIVE', role: adminRole, password: 'admin123' },
-      { email: 'registrar.senior@gvc.edu', status: 'ACTIVE', role: registrarRole },
-      { email: 'registrar.junior@gvc.edu', status: 'ACTIVE', role: registrarRole },
-      { email: 'finance.officer@gvc.edu', status: 'ACTIVE', role: registrarRole },
-      { email: 'locked.staff@gvc.edu', status: 'LOCKED', role: registrarRole },
-      { email: 'retired.staff@gvc.edu', status: 'DISABLED', role: registrarRole }
+      { email: 'admin@gvc.edu', status: 'ACTIVE', role: adminRole, password: 'admin123', first_name: 'System', last_name: 'Admin' },
+      { email: 'registrar.senior@gvc.edu', status: 'ACTIVE', role: registrarRole, first_name: 'Senior', last_name: 'Registrar' },
+      { email: 'registrar.junior@gvc.edu', status: 'ACTIVE', role: registrarRole, first_name: 'Junior', last_name: 'Registrar' },
+      { email: 'finance.officer@gvc.edu', status: 'ACTIVE', role: registrarRole, first_name: 'Finance', last_name: 'Officer' },
+      { email: 'locked.staff@gvc.edu', status: 'LOCKED', role: registrarRole, first_name: 'Locked', last_name: 'Staff' },
+      { email: 'retired.staff@gvc.edu', status: 'DISABLED', role: registrarRole, first_name: 'Retired', last_name: 'Staff' }
      
 
     ];
@@ -103,7 +104,12 @@ const seedDatabase = async () => {
       }
 
       try {
-        user = await UserAccount.create({ email: u.email, password_hash: pass, status: u.status });
+        const person = await Person.create({
+          first_name: u.first_name,
+          last_name: u.last_name,
+          email: u.email
+        });
+        user = await UserAccount.create({ person_id: person.person_id, email: u.email, password_hash: pass, status: u.status });
         await user.setRoles([u.role]);
       } catch (err) {
         // Handle potential race-condition duplicate insert

@@ -2,6 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import sequelize from './src/config/database.js';
 import { errorHandler } from './src/middlewares/errorHandler.js';
+import './src/modules/persons/person.model.js';
+import './src/modules/staff/staff.model.js';
 
 // Import the Central Router
 import apiRouter from './src/modules/index.routes.js';
