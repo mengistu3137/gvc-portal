@@ -94,12 +94,29 @@ async login(email, password) {
     return await UserAccount.create({ ...data, password_hash: hashedPassword });
   }
 
-  async updateUser(id, data) {
-    const user = await UserAccount.findByPk(id);
-    if (!user) throw new Error('User not found');
-    return await user.update(data);
+// ... existing imports ...
+
+async updateUser(id, data) {
+  const user = await UserAccount.findByPk(id);
+  if (!user) throw new Error('User not found');
+
+  // Security Check: If password is being updated, hash it
+  if (data.password) {
+    data.password_hash = await argon2.hash(data.password, { type: argon2.argon2id });
+    // Remove the plain text password from the data object before updating
+    delete data.password;
   }
 
+  // Update the user record
+  await user.update(data);
+
+  // Return the updated user without the sensitive password hash
+  const updatedUser = await UserAccount.findByPk(id, {
+    attributes: { exclude: ['password_hash'] }
+  });
+
+  return updatedUser;
+}
   async deleteUser(id) {
     const user = await UserAccount.findByPk(id);
     if (!user) throw new Error('User not found');

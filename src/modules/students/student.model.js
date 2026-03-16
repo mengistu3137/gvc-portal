@@ -1,31 +1,41 @@
 import { DataTypes, Model } from 'sequelize';
-import sequelize from '../../config/database.js'; // Note the .js extension
+import sequelize from '../../config/database.js';
+import { Occupation, Level, Batch } from '../academics/academic.model.js';
 
-export class StudentSequence extends Model {}
-StudentSequence.init({
-  year_id: { type: DataTypes.INTEGER, primaryKey: true },
-  current_val: { type: DataTypes.INTEGER, defaultValue: 0 }
-}, { sequelize, modelName: 'student_sequence', timestamps: false });
+export class StudentIdSequence extends Model {}
+StudentIdSequence.init({
+  reg_year: { type: DataTypes.SMALLINT.UNSIGNED, primary_key: true },
+  last_seq: { type: DataTypes.INTEGER.UNSIGNED, defaultValue: 0 }
+}, { sequelize, modelName: 'student_id_sequence', tableName: 'student_id_sequences', timestamps: false });
 
 export class Student extends Model {}
 Student.init({
-  student_id: { 
-    type: DataTypes.STRING(20), 
-    primaryKey: true 
-  },
-  full_name: { type: DataTypes.STRING(150), allowNull: false },
+  student_pk: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  student_id: { type: DataTypes.STRING(30),unique: true, allowNull: false },
+  reg_year: { type: DataTypes.SMALLINT.UNSIGNED, allowNull: false },
+  reg_sequence: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+  
+  // These will be inherited from the Batch during creation
+  occupation_id: { type: DataTypes.INTEGER, allowNull: false },
+  level_id: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
+  batch_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+
+  first_name: { type: DataTypes.STRING(80), allowNull: false },
+  middle_name: { type: DataTypes.STRING(80) },
+  last_name: { type: DataTypes.STRING(80), allowNull: false },
   gender: { type: DataTypes.ENUM('M', 'F'), allowNull: false },
-  phone_number: { type: DataTypes.STRING(15), unique: true },
-  educational_stream: { 
-    type: DataTypes.ENUM('Social', 'Natural', 'Bsc', 'Diploma'), 
-    allowNull: false 
-  },
-  status: { 
-    type: DataTypes.ENUM('Active', 'Leave', 'Graduated', 'Dropped'), 
-    defaultValue: 'Active' 
-  }
+  date_of_birth: { type: DataTypes.DATEONLY },
+  admission_date: { type: DataTypes.DATEONLY, defaultValue: DataTypes.NOW },
+  status: { type: DataTypes.ENUM('ACTIVE', 'SUSPENDED', 'GRADUATED', 'DROPPED'), defaultValue: 'ACTIVE' }
 }, { 
   sequelize, 
-  modelName: 'student',
-  paranoid: true
+  modelName: 'student', 
+  tableName: 'students', 
+  paranoid: true, 
+  underscored: true 
 });
+
+// Relationships based on your Academic Model
+Student.belongsTo(Occupation, { foreignKey: 'occupation_id', as: 'occupation' });
+Student.belongsTo(Level, { foreignKey: 'level_id', as: 'level' });
+Student.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
