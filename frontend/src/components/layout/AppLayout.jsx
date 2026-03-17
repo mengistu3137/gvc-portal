@@ -19,7 +19,7 @@ const navItems = [
   { label: 'Grading', icon: BookOpenCheck, to: '/grading' },
   { label: 'Students', icon: GraduationCap, to: '/students' },
   { label: 'Enrollment', icon: ShieldCheck, to: '/enrollment' },
-  { label: 'Explorer', icon: Bell, to: '/explorer' },
+  { label: 'Explorer', icon: Bell, to: '/academic-explorer' },
 ];
 
 function buildBreadcrumbs(pathname) {
@@ -52,6 +52,7 @@ export function AppLayout({ children }) {
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === '/'}
               className={({ isActive }) =>
                 cn(
                   'flex h-10 w-10 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white',

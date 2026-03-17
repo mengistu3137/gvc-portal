@@ -10,6 +10,7 @@ import {
 	GradeScaleItem,
 	ModuleEnrollment
 } from './grading.model.js';
+import { mapRowsByFieldMapping, parseSpreadsheetRowsFromFile } from '../../utils/spreadsheetImport.js';
 
 const can = (actor, permission) => (actor?.permissions || []).includes(permission);
 
@@ -256,6 +257,17 @@ class GradingService {
 			await t.rollback();
 			throw error;
 		}
+	}
+
+	async upsertStudentGradesBulkFromSpreadsheet(file, mapping = {}, actor) {
+		const parsedRows = parseSpreadsheetRowsFromFile(file);
+		const rows = mapRowsByFieldMapping(parsedRows, mapping);
+
+		if (!Array.isArray(rows) || rows.length === 0) {
+			throw new Error('No import rows were found in the uploaded spreadsheet.');
+		}
+
+		return this.upsertStudentGradesBulk(rows, actor);
 	}
 
 	async changeSubmissionStatus(submissionId, nextStatus, actor, note = null) {

@@ -49,23 +49,23 @@ export function DataTable({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
         <Input
           value={globalFilter}
           onChange={(event) => setGlobalFilter(event.target.value)}
-          placeholder="Filter table..."
+          placeholder="Filter records"
           className="max-w-xs"
         />
         {isFetching && !isLoading ? (
-          <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1 text-[11px] text-primary">
             <LoaderCircle size={14} className="animate-spin" />
             Syncing
           </span>
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-primary/15 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

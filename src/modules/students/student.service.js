@@ -4,6 +4,7 @@ import { Student, StudentIdSequence } from './student.model.js';
 import { Occupation, Batch, Level, AcademicYear, Sector } from '../academics/academic.model.js';
 import { Person } from '../persons/person.model.js';
 import { UserAccount } from '../auth/auth.model.js';
+import { mapRowsByFieldMapping, parseSpreadsheetRowsFromFile } from '../../utils/spreadsheetImport.js';
 
 const toLegacyStudentDto = (student) => {
   const row = student.toJSON();
@@ -165,6 +166,17 @@ class StudentService {
       await t.rollback();
       throw error;
     }
+  }
+
+  async createStudentsBulkFromSpreadsheet(file, mapping = {}) {
+    const parsedRows = parseSpreadsheetRowsFromFile(file);
+    const rows = mapRowsByFieldMapping(parsedRows, mapping);
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error('No import rows were found in the uploaded spreadsheet.');
+    }
+
+    return this.createStudentsBulk(rows);
   }
 
   async getStudents(query) {

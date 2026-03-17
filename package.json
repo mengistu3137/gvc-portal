@@ -29,7 +29,8 @@
     "mysql2": "^3.18.2",
     "nodeman": "^1.1.2",
     "sequelize": "^6.37.7",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.5"

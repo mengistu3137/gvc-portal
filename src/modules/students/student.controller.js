@@ -43,6 +43,17 @@ export const createStudentsBulk = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+export const importStudentsBulk = async (req, res, next) => {
+  try {
+    const mapping = typeof req.body?.mapping === 'string'
+      ? JSON.parse(req.body.mapping || '{}')
+      : (req.body?.mapping || {});
+
+    const data = await StudentService.createStudentsBulkFromSpreadsheet(req.file, mapping);
+    res.status(201).json({ success: true, count: data.length, rows: data });
+  } catch (error) { next(error); }
+};
+
 export const uploadStudentPhoto = async (req, res, next) => {
   try {
     if (!req.file) {

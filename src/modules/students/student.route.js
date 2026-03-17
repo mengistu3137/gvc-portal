@@ -2,13 +2,14 @@ import express from 'express';
 import {
   createStudent,
   createStudentsBulk,
+  importStudentsBulk,
   getStudents,
   getStudentById,
   updateStudent,
   deleteStudent,
   uploadStudentPhoto
 } from './student.controller.js';
-import { profilePhotoUpload } from '../../middlewares/upload.js';
+import { profilePhotoUpload, spreadsheetUpload } from '../../middlewares/upload.js';
 import { authenticate, authorize } from '../../middlewares/authGuard.js';
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.route('/')
   .get(auth('view_students'), getStudents);
 
 router.post('/bulk', auth('manage_student'), createStudentsBulk);
+router.post('/import', auth('manage_student'), spreadsheetUpload.single('file'), importStudentsBulk);
 router.post('/:id/photo', auth('manage_student'), profilePhotoUpload.single('photo'), uploadStudentPhoto);
 
 /**

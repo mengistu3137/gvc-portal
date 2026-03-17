@@ -15,7 +15,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           position="top-right"
           toastOptions={{
             duration: 3000,
-            className: 'border border-slate-200 text-sm',
+            className: 'border border-primary/20 bg-white text-xs font-semibold text-brand-ink shadow-panel',
+            success: {
+              iconTheme: {
+                primary: '#0f417c',
+                secondary: '#ffc428',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#b91c1c',
+                secondary: '#fee2e2',
+              },
+            },
           }}
         />
       </BrowserRouter>

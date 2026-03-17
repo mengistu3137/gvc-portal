@@ -29,3 +29,32 @@ export const profilePhotoUpload = multer({
     fileSize: 5 * 1024 * 1024
   }
 });
+
+const spreadsheetMimeTypes = new Set([
+  'text/csv',
+  'application/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/octet-stream'
+]);
+
+const spreadsheetFilter = (_req, file, cb) => {
+  const lowerName = String(file.originalname || '').toLowerCase();
+  const hasAllowedExtension = ['.csv', '.xls', '.xlsx'].some((ext) => lowerName.endsWith(ext));
+  const hasAllowedMime = spreadsheetMimeTypes.has(file.mimetype || '');
+
+  if (hasAllowedExtension || hasAllowedMime) {
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error('Only CSV/XLS/XLSX uploads are allowed.'));
+};
+
+export const spreadsheetUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: spreadsheetFilter,
+  limits: {
+    fileSize: 20 * 1024 * 1024
+  }
+});

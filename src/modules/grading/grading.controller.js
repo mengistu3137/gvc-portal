@@ -62,6 +62,17 @@ export const upsertStudentGradesBulk = async (req, res, next) => {
 	} catch (error) { next(error); }
 };
 
+export const importStudentGradesBulk = async (req, res, next) => {
+	try {
+		const mapping = typeof req.body?.mapping === 'string'
+			? JSON.parse(req.body.mapping || '{}')
+			: (req.body?.mapping || {});
+
+		const data = await GradingService.upsertStudentGradesBulkFromSpreadsheet(req.file, mapping, req.user);
+		res.status(201).json({ success: true, count: data.length, rows: data });
+	} catch (error) { next(error); }
+};
+
 export const changeSubmissionStatus = async (req, res, next) => {
 	try {
 		const { next_status, note } = req.body;

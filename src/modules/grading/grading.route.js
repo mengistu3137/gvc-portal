@@ -7,6 +7,7 @@ import {
 	createSubmission,
 	upsertStudentGrade,
 	upsertStudentGradesBulk,
+	importStudentGradesBulk,
 	changeSubmissionStatus,
 	createPolicy,
 	addScaleItem,
@@ -14,6 +15,7 @@ import {
 	calculateFinalGrade
 } from './grading.controller.js';
 import { authenticate, authorize } from '../../middlewares/authGuard.js';
+import { spreadsheetUpload } from '../../middlewares/upload.js';
 
 const router = express.Router();
 
@@ -27,6 +29,7 @@ router.get('/submissions/:id', auth('manage_grading'), getSubmissionById);
 router.post('/submissions', auth('manage_grading'), createSubmission);
 router.post('/grades', auth('manage_grading'), upsertStudentGrade);
 router.post('/grades/bulk', auth('manage_grading'), upsertStudentGradesBulk);
+router.post('/grades/import', auth('manage_grading'), spreadsheetUpload.single('file'), importStudentGradesBulk);
 
 router.put('/submissions/:id/status', authenticate, changeSubmissionStatus);
 

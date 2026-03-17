@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Button } from './button';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 import { Input } from './input';
@@ -13,6 +14,7 @@ export function ImportMapperCard({
 }) {
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
+  const [sourceFile, setSourceFile] = useState(null);
   const [mapping, setMapping] = useState({});
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -32,6 +34,7 @@ export function ImportMapperCard({
     setIsParsing(true);
     setSummary(null);
     try {
+      setSourceFile(file);
       const parsed = await parseSpreadsheet(file);
       setHeaders(parsed.headers);
       setRows(parsed.rows);
@@ -43,6 +46,9 @@ export function ImportMapperCard({
         ) || '';
       });
       setMapping(suggested);
+      toast.success(`Loaded ${parsed.rows.length} row(s) from ${file.name}`);
+    } catch (error) {
+      toast.error(error.message || 'Unable to parse spreadsheet');
     } finally {
       setIsParsing(false);
     }
@@ -57,8 +63,11 @@ export function ImportMapperCard({
     setSummary(null);
 
     try {
-      const result = await onImport(mappedRows, setProgress);
+      const result = await onImport(mappedRows, setProgress, { sourceFile, mapping });
       setSummary(result);
+      toast.success(`Imported ${result.successes} row(s)`);
+    } catch (error) {
+      toast.error(error.message || 'Import failed');
     } finally {
       setIsImporting(false);
     }

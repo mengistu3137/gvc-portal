@@ -9,15 +9,16 @@ export default {
         brand: {
           blue: '#0f417c',
           yellow: '#ffc428',
-          background: '#f9fafb',
+          background: '#f4f8fd',
           surface: '#ffffff',
+          ink: '#0b2647',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', 'Arial', 'sans-serif'],
+        sans: ['Manrope', 'Segoe UI', 'Arial', 'sans-serif'],
       },
       boxShadow: {
-        panel: '0 1px 2px rgba(2, 6, 23, 0.06)',
+        panel: '0 1px 2px rgba(15, 65, 124, 0.08), 0 8px 24px rgba(15, 65, 124, 0.06)',
       },
     },
   },

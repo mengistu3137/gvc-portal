@@ -20,6 +20,16 @@ const STATUS_ACTIONS = {
   REJECTED: [{ label: 'Reopen', next: 'DRAFT', permission: 'manage_grading' }],
 };
 
+const STATUS_STYLE = {
+  DRAFT: 'outline',
+  SUBMITTED: 'primary',
+  HOD_APPROVED: 'success',
+  QA_APPROVED: 'success',
+  TVET_APPROVED: 'success',
+  FINALIZED: 'accent',
+  REJECTED: 'destructive',
+};
+
 export function GradeApprovalDashboard() {
   const [skipNotes, setSkipNotes] = useState('');
   const [importOpen, setImportOpen] = useState(false);
@@ -40,23 +50,48 @@ export function GradeApprovalDashboard() {
         note: targetStatus === 'FINALIZED' ? skipNotes || row.note || null : row.note || null,
       },
       method: 'put',
+    }, {
+      onSuccess: () => {
+        setSelectedSubmission((current) => {
+          if (!current || current.submission_id !== row.submission_id) {
+            return current;
+          }
+          return { ...current, status: targetStatus };
+        });
+      },
     });
   };
 
-  const importRows = async (rows, setProgress) => {
-    const payload = rows.map((row) => ({
-      student_pk: Number(row.student_pk),
-      task_id: Number(row.task_id),
-      batch_id: Number(row.batch_id),
-      module_id: Number(row.module_id),
-      obtained_score: Number(row.obtained_score),
-    }));
+  const importRows = async (rows, setProgress, context = {}) => {
+    if (!context.sourceFile) {
+      const payload = rows.map((row) => ({
+        student_pk: Number(row.student_pk),
+        task_id: Number(row.task_id),
+        batch_id: Number(row.batch_id),
+        module_id: Number(row.module_id),
+        obtained_score: Number(row.obtained_score),
+      }));
 
-    setProgress(50);
-    await api.post('/grading/grades/bulk', { rows: payload });
+      setProgress(50);
+      await api.post('/grading/grades/bulk', { rows: payload });
+      setProgress(100);
+      return { successes: payload.length, errors: 0 };
+    }
+
+    const formData = new FormData();
+    formData.append('file', context.sourceFile);
+    formData.append('mapping', JSON.stringify(context.mapping || {}));
+
+    setProgress(25);
+    const response = await api.post('/grading/grades/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     setProgress(100);
 
-    return { successes: payload.length, errors: 0 };
+    return {
+      successes: Number(response.raw?.count || 0),
+      errors: 0,
+    };
   };
 
   const columns = useMemo(
@@ -76,7 +111,7 @@ export function GradeApprovalDashboard() {
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => <Badge variant="primary">{row.original.status}</Badge>,
+        cell: ({ row }) => <Badge variant={STATUS_STYLE[row.original.status] || 'outline'}>{row.original.status}</Badge>,
       },
       {
         accessorKey: 'note',
@@ -113,6 +148,11 @@ export function GradeApprovalDashboard() {
                 const allowed = hasPermission(action.permission);
                 const needsSkipNote = action.next === 'FINALIZED' && row.original.status === 'HOD_APPROVED';
                 const blockedByNote = needsSkipNote && !skipNotes.trim();
+                const blockedReason = !allowed
+                  ? 'Permission required'
+                  : blockedByNote
+                    ? 'Skip note required'
+                    : null;
 
                 return (
                   <Button
@@ -121,6 +161,7 @@ export function GradeApprovalDashboard() {
                     variant={action.next === 'REJECTED' ? 'destructive' : 'default'}
                     onClick={() => handleTransition(row.original, action.next)}
                     disabled={!allowed || blockedByNote || updateSubmission.isPending}
+                    title={blockedReason || `Move to ${action.next}`}
                   >
                     {action.label}
                   </Button>
@@ -162,6 +203,9 @@ export function GradeApprovalDashboard() {
               onChange={(event) => setSkipNotes(event.target.value)}
               placeholder="Required for skip/escalation workflows"
             />
+            <p className="text-[11px] text-slate-600">
+              Finalize from HOD-approved state requires a skip note for a complete audit trail.
+            </p>
           </div>
 
           <DataTable
@@ -186,15 +230,24 @@ export function GradeApprovalDashboard() {
                   <p className="text-sm text-slate-700">
                     Submission #{selectedSubmission.submission_id} for module {selectedSubmission.module_id}
                   </p>
+                  <div>
+                    <Badge variant={STATUS_STYLE[selectedSubmission.status] || 'outline'}>
+                      Current status: {selectedSubmission.status}
+                    </Badge>
+                  </div>
                   {(selectedSubmission.workflow_history || []).length === 0 ? (
                     <p className="text-sm text-slate-500">No workflow events recorded yet.</p>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {selectedSubmission.workflow_history.map((entry, index) => (
-                        <div key={`${selectedSubmission.submission_id}-${entry.status}-${index}`} className="rounded border border-slate-200 p-2 text-sm">
-                          <div><span className="font-medium">Step:</span> {entry.status}</div>
-                          <div><span className="font-medium">Completed:</span> {new Date(entry.completed_at).toLocaleString()}</div>
-                          <div><span className="font-medium">By:</span> {entry.performed_by}</div>
+                        <div
+                          key={`${selectedSubmission.submission_id}-${entry.status}-${index}`}
+                          className="relative rounded border border-primary/15 bg-primary/5 p-2 pl-4 text-xs"
+                        >
+                          <span className="absolute left-1.5 top-3 h-2 w-2 rounded-full bg-accent" />
+                          <div><span className="font-semibold text-primary">Step:</span> {entry.status}</div>
+                          <div><span className="font-semibold text-primary">Completed:</span> {new Date(entry.completed_at).toLocaleString()}</div>
+                          <div><span className="font-semibold text-primary">By:</span> {entry.performed_by}</div>
                         </div>
                       ))}
                     </div>

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Alert } from '../components/ui/Alert';
 import { DataTable } from '../components/ui/DataTable';
 import { useCrud } from '../hooks/useCrud';
 import { api } from '../lib/api';
@@ -15,11 +14,13 @@ const defaultForm = {
   status: 'ENROLLED',
 };
 
+const statusOptions = ['ENROLLED', 'COMPLETED', 'DROPPED', 'WITHDRAWN'];
+
 export function EnrollmentManager() {
   const [form, setForm] = useState(defaultForm);
+  const [editingId, setEditingId] = useState(null);
   const [eligibilityResult, setEligibilityResult] = useState(null);
   const [checking, setChecking] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   const studentsCrud = useCrud('students');
   const modulesCrud = useCrud('academics/modules');
@@ -29,22 +30,38 @@ export function EnrollmentManager() {
   const studentsQuery = studentsCrud.list({ page: 1, limit: 300 });
   const modulesQuery = modulesCrud.list({ page: 1, limit: 300 });
   const batchesQuery = batchesCrud.list({ page: 1, limit: 300 });
-  const enrollmentsQuery = enrollmentCrud.list({ status: 'ENROLLED' });
+  const enrollmentsQuery = enrollmentCrud.list({ page: 1, limit: 300 });
+
+  const createEnrollment = enrollmentCrud.create();
+  const updateEnrollment = enrollmentCrud.update();
   const removeEnrollment = enrollmentCrud.remove();
 
   const onField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const resetForm = () => {
+    setForm(defaultForm);
+    setEditingId(null);
+    setEligibilityResult(null);
+  };
+
   const checkEligibility = async () => {
     if (!form.student_pk || !form.module_id) {
+      toast.error('Select student and module first');
       return;
     }
 
     setChecking(true);
     try {
       const response = await api.get(`/enrollment/eligibility/${form.student_pk}/${form.module_id}`);
-      setEligibilityResult(response.payload);
+      const result = response.payload;
+      setEligibilityResult(result);
+      if (result?.eligible) {
+        toast.success('Student is eligible for this module');
+      } else {
+        toast.error('Prerequisites missing for selected module');
+      }
     } catch (error) {
       toast.error(error.message || 'Eligibility check failed');
       setEligibilityResult(null);
@@ -57,10 +74,9 @@ export function EnrollmentManager() {
     event.preventDefault();
 
     if (!form.student_pk || !form.module_id || !form.batch_id) {
+      toast.error('Student, module, and batch are required');
       return;
     }
-
-    setSubmitting(true);
 
     try {
       const eligibilityResponse = await api.get(`/enrollment/eligibility/${form.student_pk}/${form.module_id}`);
@@ -72,26 +88,39 @@ export function EnrollmentManager() {
         return;
       }
 
-      await api.post('/enrollment', {
+      const payload = {
         student_pk: Number(form.student_pk),
         module_id: Number(form.module_id),
         batch_id: Number(form.batch_id),
         status: form.status || 'ENROLLED',
-      });
+      };
 
-      toast.success('Enrollment created successfully');
-      setForm(defaultForm);
-      enrollmentsQuery.refetch();
+      if (editingId) {
+        await updateEnrollment.mutateAsync({ id: editingId, payload, method: 'put' });
+      } else {
+        await createEnrollment.mutateAsync(payload);
+      }
+
+      resetForm();
     } catch (error) {
       toast.error(error.message || 'Enrollment failed');
-    } finally {
-      setSubmitting(false);
     }
   };
 
   const removeEnrollmentRow = async (enrollmentId) => {
     await removeEnrollment.mutateAsync(enrollmentId);
-    enrollmentsQuery.refetch();
+  };
+
+  const setEditingRow = (row) => {
+    setEditingId(row.enrollment_id);
+    setForm({
+      student_pk: String(row.student_pk || ''),
+      module_id: String(row.module_id || ''),
+      batch_id: String(row.batch_id || ''),
+      status: row.status || 'ENROLLED',
+    });
+    setEligibilityResult(null);
+    toast.success(`Editing enrollment #${row.enrollment_id}`);
   };
 
   const enrollmentColumns = useMemo(
@@ -100,50 +129,57 @@ export function EnrollmentManager() {
       {
         id: 'student',
         header: 'Student',
-        cell: ({ row }) => `${row.original.student?.student_id || '-'} (PK: ${row.original.student_pk})`
+        cell: ({ row }) => `${row.original.student?.student_id || '-'} (PK: ${row.original.student_pk})`,
       },
       {
         id: 'module',
         header: 'Module',
-        cell: ({ row }) => row.original.module?.unit_competency || row.original.module?.m_code || row.original.module_id
+        cell: ({ row }) => row.original.module?.unit_competency || row.original.module?.m_code || row.original.module_id,
       },
       {
         id: 'batch',
         header: 'Batch',
-        cell: ({ row }) => row.original.batch?.batch_code || row.original.batch_id
+        cell: ({ row }) => row.original.batch?.batch_code || row.original.batch_id,
       },
       { accessorKey: 'status', header: 'Status' },
       {
         id: 'actions',
-        header: 'Action',
+        header: 'Actions',
         cell: ({ row }) => (
-          <Button
-            type="button"
-            size="sm"
-            variant="destructive"
-            onClick={() => removeEnrollmentRow(row.original.enrollment_id)}
-            disabled={removeEnrollment.isPending}
-          >
-            Remove
-          </Button>
-        )
-      }
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setEditingRow(row.original)}>
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={() => removeEnrollmentRow(row.original.enrollment_id)}
+              disabled={removeEnrollment.isPending}
+            >
+              Remove
+            </Button>
+          </div>
+        ),
+      },
     ],
     [removeEnrollment.isPending]
   );
+
+  const isMutating = createEnrollment.isPending || updateEnrollment.isPending;
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Enrollment & Prerequisite Guard</CardTitle>
+          <CardTitle>Enrollment and Prerequisite Guard</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <form className="grid gap-2 md:grid-cols-2" onSubmit={submitEnrollment}>
             <select
               value={form.student_pk}
               onChange={(event) => onField('student_pk', event.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+              className="h-8 rounded-md border border-primary/20 bg-white px-2 py-1 text-xs"
               required
             >
               <option value="">Select Student</option>
@@ -157,7 +193,7 @@ export function EnrollmentManager() {
             <select
               value={form.module_id}
               onChange={(event) => onField('module_id', event.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+              className="h-8 rounded-md border border-primary/20 bg-white px-2 py-1 text-xs"
               required
             >
               <option value="">Select Module</option>
@@ -171,7 +207,7 @@ export function EnrollmentManager() {
             <select
               value={form.batch_id}
               onChange={(event) => onField('batch_id', event.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+              className="h-8 rounded-md border border-primary/20 bg-white px-2 py-1 text-xs"
               required
             >
               <option value="">Select Batch</option>
@@ -182,15 +218,30 @@ export function EnrollmentManager() {
               ))}
             </select>
 
-            <Input value={form.status} onChange={(event) => onField('status', event.target.value)} placeholder="Status" />
+            <select
+              value={form.status}
+              onChange={(event) => onField('status', event.target.value)}
+              className="h-8 rounded-md border border-primary/20 bg-white px-2 py-1 text-xs"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
 
-            <div className="md:col-span-2 flex gap-2">
+            <div className="flex gap-2 md:col-span-2">
               <Button type="button" variant="outline" onClick={checkEligibility} disabled={checking}>
                 {checking ? 'Checking...' : 'Check Prerequisites'}
               </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? 'Enrolling...' : 'Enroll Student'}
+              <Button type="submit" disabled={isMutating}>
+                {isMutating ? 'Saving...' : editingId ? 'Update Enrollment' : 'Enroll Student'}
               </Button>
+              {editingId ? (
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  Cancel Edit
+                </Button>
+              ) : null}
             </div>
           </form>
 
@@ -201,7 +252,10 @@ export function EnrollmentManager() {
               </Alert>
             ) : (
               <Alert tone="danger" title="Enrollment blocked">
-                Missing prerequisite modules: {eligibilityResult.missing.join(', ')}
+                Missing prerequisite modules:{' '}
+                {(eligibilityResult.missing_modules || [])
+                  .map((item) => item.module_name || `Module ${item.module_id}`)
+                  .join(', ')}
               </Alert>
             )
           ) : null}
@@ -210,7 +264,7 @@ export function EnrollmentManager() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Current Enrollments</CardTitle>
+          <CardTitle>Enrollment Registry</CardTitle>
         </CardHeader>
         <CardContent>
           <DataTable
@@ -219,7 +273,7 @@ export function EnrollmentManager() {
             isLoading={enrollmentsQuery.isLoading}
             isFetching={enrollmentsQuery.isFetching}
             error={enrollmentsQuery.error}
-            emptyTitle="No active enrollments"
+            emptyTitle="No enrollments"
             emptyDescription="Students enrolled in modules will appear here."
           />
         </CardContent>

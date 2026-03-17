@@ -163,7 +163,21 @@ export function StudentListDemo() {
     [selectedIds]
   );
 
-  const importRows = async (rows, setProgress) => {
+  const importRows = async (rows, setProgress, context = {}) => {
+    if (context.sourceFile) {
+      const formData = new FormData();
+      formData.append('file', context.sourceFile);
+      formData.append('mapping', JSON.stringify(context.mapping || {}));
+
+      setProgress(25);
+      const response = await api.post('/students/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setProgress(100);
+
+      return { successes: Number(response.raw?.count || 0), errors: 0 };
+    }
+
     const payload = rows.map((row) => ({
       ...row,
       batch_id: Number(row.batch_id),
