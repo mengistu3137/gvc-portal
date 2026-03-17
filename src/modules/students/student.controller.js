@@ -34,3 +34,23 @@ export const deleteStudent = async (req, res, next) => {
     res.json({ success: true, message: "Student archived" });
   } catch (error) { next(error); }
 };
+
+export const createStudentsBulk = async (req, res, next) => {
+  try {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    const data = await StudentService.createStudentsBulk(rows);
+    res.status(201).json({ success: true, count: data.length, rows: data });
+  } catch (error) { next(error); }
+};
+
+export const uploadStudentPhoto = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw new Error('Profile image file is required.');
+    }
+
+    const photoUrl = `/uploads/profiles/${req.file.filename}`;
+    const data = await StudentService.updateStudentPhoto(req.params.id, photoUrl);
+    res.json({ success: true, message: 'Student photo uploaded', data });
+  } catch (error) { next(error); }
+};

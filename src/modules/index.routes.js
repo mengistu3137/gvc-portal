@@ -6,6 +6,9 @@ import authRoutes from './auth/auth.route.js';
 import academicRoutes from './academics/academic.route.js';
 import instructorRoutes from './instructors/instructor.route.js';
 import studentRoutes from './students/student.route.js';
+import staffRoutes from './staff/staff.route.js';
+import gradingRoutes from './grading/grading.route.js';
+import enrollmentRoutes from './enrollment/enrollment.route.js';
 // import curriculumRoutes from './curriculum/curriculum.route.js'; // Future
 // import financeRoutes from './finance/finance.route.js'; // Future
 
@@ -20,6 +23,9 @@ router.use('/auth', authRoutes);
 // Academics endpoints: /api/academics/departments, etc.
 router.use('/academics', academicRoutes);
 router.use('/instructors', instructorRoutes);
+router.use('/staff', staffRoutes);
+router.use('/grading', gradingRoutes);
+router.use('/enrollment', enrollmentRoutes);
 
 // Student endpoints: /api/students/register, etc.
 

@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import { Instructor } from './instructor.model.js';
+import { StaffIdSequence } from '../staff/staff.model.js';
 import { Person } from '../persons/person.model.js';
 import { Occupation } from '../academics/academic.model.js';
 import { UserAccount, Role } from '../auth/auth.model.js';
@@ -32,6 +33,24 @@ class InstructorService {
   async createInstructor(data) {
     const t = await sequelize.transaction();
     try {
+      const currentYear = new Date().getFullYear();
+      const shortYear = String(currentYear).slice(-2);
+
+      const [sequence] = await StaffIdSequence.findOrCreate({
+        where: {
+          category: 'INST',
+          reg_year: currentYear
+        },
+        defaults: { last_seq: 0 },
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
+
+      const nextSeq = sequence.last_seq + 1;
+      await sequence.update({ last_seq: nextSeq }, { transaction: t });
+
+      const generatedStaffCode = `GVC-INST-${String(nextSeq).padStart(3, '0')}/${shortYear}`;
+
       const personPayload = {
         first_name: data.first_name,
         middle_name: data.middle_name || null,
@@ -51,7 +70,7 @@ class InstructorService {
 
       const instructor = await Instructor.create({
         person_id: person.person_id,
-        staff_code: data.staff_code,
+        staff_code: generatedStaffCode,
         occupation_id: data.occupation_id || null,
         hire_date: data.hire_date || null,
         qualification: data.qualification || null,
@@ -135,6 +154,18 @@ class InstructorService {
     };
   }
 
+  async getInstructorById(id) {
+    const instructor = await Instructor.findByPk(id, {
+      include: [
+        { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+        { model: Occupation, as: 'occupation', attributes: ['occupation_name', 'occupation_code'] }
+      ]
+    });
+
+    if (!instructor) throw new Error('Instructor not found');
+    return toLegacyInstructorDto(instructor);
+  }
+
   async updateInstructor(id, data) {
     const t = await sequelize.transaction();
     try {
@@ -180,6 +211,17 @@ class InstructorService {
     const inst = await Instructor.findByPk(id);
     if (!inst) throw new Error('Instructor not found');
     return await inst.destroy();
+  }
+
+  async updateInstructorPhoto(id, photoUrl) {
+    const inst = await Instructor.findByPk(id);
+    if (!inst) throw new Error('Instructor not found');
+
+    const person = await Person.findByPk(inst.person_id);
+    if (!person) throw new Error('Person identity not found for instructor');
+
+    await person.update({ photo_url: photoUrl });
+    return this.getInstructorById(id);
   }
 }
 

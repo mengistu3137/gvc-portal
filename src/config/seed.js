@@ -2,6 +2,15 @@ import argon2 from 'argon2';
 import sequelize from './database.js';
 import { UserAccount, Role, Permission } from '../modules/auth/auth.model.js';
 import { Person } from '../modules/persons/person.model.js';
+import {
+  Sector,
+  Occupation,
+  Level,
+  Module,
+  AcademicYear,
+  Batch,
+  LevelModule
+} from '../modules/academics/academic.model.js';
 
 const seedDatabase = async () => {
   try {
@@ -34,6 +43,18 @@ const seedDatabase = async () => {
       { permission_code: 'view_academic_year', permission_name: 'View Academic Years', module_scope: 'ACADEMICS' },
       { permission_code: 'manage_academic_year', permission_name: 'Create/Edit/Delete Academic Years', module_scope: 'ACADEMICS' },
       { permission_code: "manage_curriculum", permission_name: "Manage Curriculum (Level-Module Mapping)", module_scope: "ACADEMICS" },
+      { permission_code: 'view_instructors', permission_name: 'View Instructors', module_scope: 'INSTRUCTORS' },
+      { permission_code: 'manage_instructors', permission_name: 'Create/Edit/Delete Instructors', module_scope: 'INSTRUCTORS' },
+      { permission_code: 'view_staff', permission_name: 'View Staff List', module_scope: 'STAFF' },
+      { permission_code: 'manage_staff', permission_name: 'Create/Edit/Delete Staff Records', module_scope: 'STAFF' },
+      { permission_code: 'manage_grading', permission_name: 'Create/Edit Assessment Plans and Grades', module_scope: 'GRADING' },
+      { permission_code: 'approve_grades_hod', permission_name: 'Approve Grades as HOD', module_scope: 'GRADING' },
+      { permission_code: 'approve_grades_qa', permission_name: 'Approve Grades as QA', module_scope: 'GRADING' },
+      { permission_code: 'approve_grades_tvet', permission_name: 'Approve Grades as TVET', module_scope: 'GRADING' },
+      { permission_code: 'finalize_grades_registrar', permission_name: 'Finalize Grades as Registrar', module_scope: 'GRADING' },
+      { permission_code: 'manage_grading_policy', permission_name: 'Create/Edit Grading Policies and Scale Items', module_scope: 'GRADING' },
+      { permission_code: 'manage_enrollment', permission_name: 'Create/Update Enrollment and Prerequisites', module_scope: 'ENROLLMENT' },
+      { permission_code: 'view_academic_progress', permission_name: 'View Student GPA and Academic Progress', module_scope: 'ENROLLMENT' },
 {permission_code:"manage_student", permission_name:"Create/Edit/Delete Student Records", module_scope:"STUDENTS"},
 {permission_code:"view_students", permission_name:"View Student List", module_scope:"STUDENTS"},
   
@@ -67,7 +88,18 @@ const seedDatabase = async () => {
     await adminRole.setPermissions(allPerms);
     
     const registrarPerms = await Permission.findAll({
-      where: { permission_code: ['create_student', 'view_students', 'manage_batch'] }
+      where: {
+        permission_code: [
+          'create_student',
+          'view_students',
+          'manage_batch',
+          'manage_grading',
+          'finalize_grades_registrar',
+          'manage_grading_policy',
+          'manage_enrollment',
+          'view_academic_progress'
+        ]
+      }
     });
     const studentPerms = await Permission.findAll({
       where: { permission_code: ['view_students'] }
@@ -77,10 +109,127 @@ const seedDatabase = async () => {
 
     console.log('✅ Permissions mapped to Roles');
 
-    // 5. Define Default Password
+    // 5. Seed Academics Core Data (idempotent)
+    const [healthSector] = await Sector.findOrCreate({
+      where: { sector_code: 'HLT' },
+      defaults: { sector_name: 'Health Sector' }
+    });
+
+    const [ictSector] = await Sector.findOrCreate({
+      where: { sector_code: 'ICT' },
+      defaults: { sector_name: 'Information and Communication Technology' }
+    });
+
+    const [nursingOccupation] = await Occupation.findOrCreate({
+      where: { occupation_code: 'NUR' },
+      defaults: {
+        sector_id: healthSector.sector_id,
+        occupation_name: 'Nursing'
+      }
+    });
+
+    const [softwareOccupation] = await Occupation.findOrCreate({
+      where: { occupation_code: 'SWE' },
+      defaults: {
+        sector_id: ictSector.sector_id,
+        occupation_name: 'Software Development'
+      }
+    });
+
+    await Level.findOrCreate({
+      where: { level_id: 4, occupation_id: nursingOccupation.occupation_id },
+      defaults: { level_name: 'IV' }
+    });
+
+    await Level.findOrCreate({
+      where: { level_id: 4, occupation_id: softwareOccupation.occupation_id },
+      defaults: { level_name: 'IV' }
+    });
+
+    const [nursingModule] = await Module.findOrCreate({
+      where: { m_code: 'NUR-MOD-001' },
+      defaults: {
+        occupation_id: nursingOccupation.occupation_id,
+        unit_competency: 'Provide comprehensive nursing care in clinical settings',
+        theory_hours: 80,
+        practical_hours: 120,
+        cooperative_hours: 40,
+        learning_hours: 240,
+        credit_units: 15.5
+      }
+    });
+
+    const [softwareModule] = await Module.findOrCreate({
+      where: { m_code: 'SWE-MOD-001' },
+      defaults: {
+        occupation_id: softwareOccupation.occupation_id,
+        unit_competency: 'Develop and maintain software applications using modern tools',
+        theory_hours: 70,
+        practical_hours: 130,
+        cooperative_hours: 40,
+        learning_hours: 240,
+        credit_units: 16.0
+      }
+    });
+
+    const [year2526] = await AcademicYear.findOrCreate({
+      where: { academic_year_label: '2018' },
+      defaults: {
+        start_date: '2025-09-01',
+        end_date: '2026-08-31'
+      }
+    });
+
+    const [nursingBatch] = await Batch.findOrCreate({
+      where: {
+        occupation_id: nursingOccupation.occupation_id,
+        academic_year_id: year2526.academic_year_id,
+        level_id: 4,
+        track_type: 'REGULAR'
+      },
+      defaults: {
+        capacity: 45
+      }
+    });
+
+    await Batch.findOrCreate({
+      where: {
+        occupation_id: softwareOccupation.occupation_id,
+        academic_year_id: year2526.academic_year_id,
+        level_id: 4,
+        track_type: 'REGULAR'
+      },
+      defaults: {
+        capacity: 40
+      }
+    });
+
+    await LevelModule.findOrCreate({
+      where: {
+        occupation_id: nursingOccupation.occupation_id,
+        level_id: 4,
+        m_code: nursingModule.m_code,
+        semester: 1
+      },
+      defaults: {}
+    });
+
+    await LevelModule.findOrCreate({
+      where: {
+        occupation_id: softwareOccupation.occupation_id,
+        level_id: 4,
+        m_code: softwareModule.m_code,
+        semester: 1
+      },
+      defaults: {}
+    });
+
+    console.log(`✅ Academics Seeded (Sectors: 2, Occupations: 2, Batches include ID ${nursingBatch.batch_id})`);
+
+    // 6. Define Default Password
     const defaultPassword = await argon2.hash('password123', { type: argon2.argon2id });
 
-    // 6. User Data for Testing PFSS
+    // 7. User Data for Testing PFSS
     const usersToSeed = [
       { email: 'admin@gvc.edu', status: 'ACTIVE', role: adminRole, password: 'admin123', first_name: 'System', last_name: 'Admin' },
       { email: 'registrar.senior@gvc.edu', status: 'ACTIVE', role: registrarRole, first_name: 'Senior', last_name: 'Registrar' },

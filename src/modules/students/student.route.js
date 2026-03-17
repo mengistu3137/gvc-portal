@@ -1,11 +1,14 @@
 import express from 'express';
 import {
   createStudent,
+  createStudentsBulk,
   getStudents,
   getStudentById,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  uploadStudentPhoto
 } from './student.controller.js';
+import { profilePhotoUpload } from '../../middlewares/upload.js';
 import { authenticate, authorize } from '../../middlewares/authGuard.js';
 
 const router = express.Router();
@@ -24,6 +27,9 @@ const auth = (permission) => [authenticate, authorize(permission)];
 router.route('/')
   .post(auth('manage_student'), createStudent)
   .get(auth('view_students'), getStudents);
+
+router.post('/bulk', auth('manage_student'), createStudentsBulk);
+router.post('/:id/photo', auth('manage_student'), profilePhotoUpload.single('photo'), uploadStudentPhoto);
 
 /**
  * Route: /api/students/:id

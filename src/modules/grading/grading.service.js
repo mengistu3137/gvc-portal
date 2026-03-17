@@ -1,0 +1,428 @@
+import { Op } from 'sequelize';
+import sequelize from '../../config/database.js';
+import { Batch } from '../academics/academic.model.js';
+import {
+	AssessmentPlan,
+	AssessmentTask,
+	StudentGrade,
+	GradeSubmission,
+	GradingPolicy,
+	GradeScaleItem,
+	ModuleEnrollment
+} from './grading.model.js';
+
+const can = (actor, permission) => (actor?.permissions || []).includes(permission);
+
+class GradingService {
+	parseSubmissionNote(note) {
+		if (!note) {
+			return { note_text: null, workflow_history: [] };
+		}
+
+		try {
+			const parsed = JSON.parse(note);
+			if (parsed && typeof parsed === 'object') {
+				return {
+					note_text: parsed.note_text || null,
+					workflow_history: Array.isArray(parsed.workflow_history) ? parsed.workflow_history : []
+				};
+			}
+		} catch {
+			return { note_text: note, workflow_history: [] };
+		}
+
+		return { note_text: note, workflow_history: [] };
+	}
+
+	serializeSubmissionNote(noteText, workflowHistory) {
+		if (!noteText && (!workflowHistory || workflowHistory.length === 0)) {
+			return null;
+		}
+
+		return JSON.stringify({
+			note_text: noteText || null,
+			workflow_history: workflowHistory || []
+		});
+	}
+
+	formatSubmissionForView(submission) {
+		const row = submission.toJSON();
+		const parsed = this.parseSubmissionNote(row.note);
+
+		return {
+			...row,
+			note: parsed.note_text,
+			workflow_history: parsed.workflow_history
+		};
+	}
+
+	async assertPolicyNotLocked(policyId, transaction) {
+		const policy = await GradingPolicy.findByPk(policyId, { transaction, lock: transaction ? transaction.LOCK.UPDATE : undefined });
+		if (!policy) throw new Error('Grading policy not found');
+		if (policy.is_locked) throw new Error('Grading policy is locked and cannot be modified.');
+
+		const batches = await Batch.findAll({
+			where: { grading_policy_id: policyId },
+			attributes: ['batch_id'],
+			transaction
+		});
+
+		if (batches.length > 0) {
+			const batchIds = batches.map((b) => b.batch_id);
+			const finalized = await GradeSubmission.findOne({
+				where: { batch_id: { [Op.in]: batchIds }, status: 'FINALIZED' },
+				transaction
+			});
+			if (finalized) {
+				throw new Error('Grading policy cannot be edited because related grade submissions are FINALIZED.');
+			}
+		}
+
+		return policy;
+	}
+
+	async validateAssessmentPlanWeights(planId, transaction) {
+		const plan = await AssessmentPlan.findByPk(planId, { transaction });
+		if (!plan) throw new Error('Assessment plan not found');
+
+		const tasks = await AssessmentTask.findAll({ where: { plan_id: planId }, transaction });
+		const total = tasks.reduce((sum, task) => sum + Number(task.max_weight), 0);
+
+		if (Number(total.toFixed(2)) !== Number(plan.total_weight)) {
+			throw new Error(`Assessment task weights must sum to ${plan.total_weight}. Current sum: ${total.toFixed(2)}`);
+		}
+
+		return { valid: true, total: Number(total.toFixed(2)) };
+	}
+
+	async ensureGradeScaleRangeDoesNotOverlap(policyId, minScore, maxScore, excludeScaleItemId = null, transaction) {
+		const where = {
+			policy_id: policyId,
+			min_score: { [Op.lte]: maxScore },
+			max_score: { [Op.gte]: minScore }
+		};
+
+		if (excludeScaleItemId) {
+			where.scale_item_id = { [Op.ne]: excludeScaleItemId };
+		}
+
+		const overlap = await GradeScaleItem.findOne({ where, transaction });
+		if (overlap) {
+			throw new Error('Grade range overlaps with an existing scale item for this policy.');
+		}
+	}
+
+	async createGradingPolicy(data, actor) {
+		if (!can(actor, 'manage_grading_policy')) {
+			throw new Error('Forbidden: missing manage_grading_policy permission.');
+		}
+
+		return GradingPolicy.create({ policy_name: data.policy_name, is_locked: false });
+	}
+
+	async addGradeScaleItem(policyId, data, actor) {
+		if (!can(actor, 'manage_grading_policy')) {
+			throw new Error('Forbidden: missing manage_grading_policy permission.');
+		}
+
+		const t = await sequelize.transaction();
+		try {
+			await this.assertPolicyNotLocked(policyId, t);
+
+			await this.ensureGradeScaleRangeDoesNotOverlap(
+				policyId,
+				Number(data.min_score),
+				Number(data.max_score),
+				null,
+				t
+			);
+
+			const created = await GradeScaleItem.create({
+				policy_id: policyId,
+				letter_grade: data.letter_grade,
+				min_score: data.min_score,
+				max_score: data.max_score,
+				grade_points: data.grade_points,
+				is_pass: data.is_pass
+			}, { transaction: t });
+
+			await t.commit();
+			return created;
+		} catch (error) {
+			await t.rollback();
+			throw error;
+		}
+	}
+
+	async updateGradeScaleItem(scaleItemId, data, actor) {
+		if (!can(actor, 'manage_grading_policy')) {
+			throw new Error('Forbidden: missing manage_grading_policy permission.');
+		}
+
+		const t = await sequelize.transaction();
+		try {
+			const item = await GradeScaleItem.findByPk(scaleItemId, { transaction: t, lock: t.LOCK.UPDATE });
+			if (!item) throw new Error('Grade scale item not found');
+
+			const policy = await this.assertPolicyNotLocked(item.policy_id, t);
+
+			const minScore = Object.prototype.hasOwnProperty.call(data, 'min_score') ? Number(data.min_score) : Number(item.min_score);
+			const maxScore = Object.prototype.hasOwnProperty.call(data, 'max_score') ? Number(data.max_score) : Number(item.max_score);
+
+			await this.ensureGradeScaleRangeDoesNotOverlap(policy.policy_id, minScore, maxScore, item.scale_item_id, t);
+
+			await item.update(data, { transaction: t });
+			await t.commit();
+			return item;
+		} catch (error) {
+			await t.rollback();
+			throw error;
+		}
+	}
+
+	async upsertStudentGradeInternal(data, transaction = null) {
+		const submission = await GradeSubmission.findOne({
+			where: { batch_id: data.batch_id, module_id: data.module_id },
+			transaction,
+			lock: transaction ? transaction.LOCK.UPDATE : undefined
+		});
+
+		if (!submission) throw new Error('Grade submission record not found for this batch/module.');
+		if (!['DRAFT', 'REJECTED'].includes(submission.status)) {
+			throw new Error('Grades can only be edited while submission is in DRAFT or REJECTED status.');
+		}
+
+		const task = await AssessmentTask.findByPk(data.task_id, {
+			include: [{ model: AssessmentPlan, as: 'plan', attributes: ['module_id', 'batch_id'] }],
+			transaction
+		});
+		if (!task || !task.plan) throw new Error('Assessment task or plan not found');
+		if (Number(task.plan.module_id) !== Number(data.module_id) || Number(task.plan.batch_id) !== Number(data.batch_id)) {
+			throw new Error('Task does not belong to the specified module/batch context.');
+		}
+
+		const existing = await StudentGrade.findOne({
+			where: { student_pk: data.student_pk, task_id: data.task_id },
+			transaction,
+			lock: transaction ? transaction.LOCK.UPDATE : undefined
+		});
+
+		if (existing) {
+			await existing.update({ obtained_score: data.obtained_score }, { transaction });
+			return existing;
+		}
+
+		return StudentGrade.create({
+			student_pk: data.student_pk,
+			task_id: data.task_id,
+			batch_id: data.batch_id,
+			obtained_score: data.obtained_score
+		}, { transaction });
+	}
+
+	async upsertStudentGrade(data, actor) {
+		if (!can(actor, 'manage_grading')) {
+			throw new Error('Forbidden: missing manage_grading permission.');
+		}
+
+		return this.upsertStudentGradeInternal(data);
+	}
+
+	async upsertStudentGradesBulk(rows, actor) {
+		if (!can(actor, 'manage_grading')) {
+			throw new Error('Forbidden: missing manage_grading permission.');
+		}
+
+		if (!Array.isArray(rows) || rows.length === 0) {
+			throw new Error('rows array is required for bulk grade import.');
+		}
+
+		const t = await sequelize.transaction();
+		try {
+			const results = [];
+			for (const row of rows) {
+				const data = {
+					student_pk: Number(row.student_pk),
+					task_id: Number(row.task_id),
+					batch_id: Number(row.batch_id),
+					module_id: Number(row.module_id),
+					obtained_score: Number(row.obtained_score)
+				};
+				results.push(await this.upsertStudentGradeInternal(data, t));
+			}
+			await t.commit();
+			return results;
+		} catch (error) {
+			await t.rollback();
+			throw error;
+		}
+	}
+
+	async changeSubmissionStatus(submissionId, nextStatus, actor, note = null) {
+		const t = await sequelize.transaction();
+		try {
+			const submission = await GradeSubmission.findByPk(submissionId, { transaction: t, lock: t.LOCK.UPDATE });
+			if (!submission) throw new Error('Grade submission not found');
+
+			if (submission.status === 'FINALIZED') {
+				throw new Error('Submission is FINALIZED and cannot be changed.');
+			}
+
+			const current = submission.status;
+			const transitions = {
+				DRAFT: ['SUBMITTED', 'REJECTED'],
+				REJECTED: ['DRAFT', 'SUBMITTED'],
+				SUBMITTED: ['HOD_APPROVED', 'REJECTED'],
+				HOD_APPROVED: ['QA_APPROVED', 'TVET_APPROVED', 'FINALIZED'],
+				QA_APPROVED: ['TVET_APPROVED', 'FINALIZED'],
+				TVET_APPROVED: ['FINALIZED']
+			};
+
+			if (!transitions[current] || !transitions[current].includes(nextStatus)) {
+				throw new Error(`Invalid workflow transition: ${current} -> ${nextStatus}`);
+			}
+
+			if (nextStatus === 'SUBMITTED') {
+				const plan = await AssessmentPlan.findOne({
+					where: { batch_id: submission.batch_id, module_id: submission.module_id },
+					transaction: t
+				});
+				if (!plan) {
+					throw new Error('Assessment plan is required before submission can move to SUBMITTED.');
+				}
+				await this.validateAssessmentPlanWeights(plan.plan_id, t);
+			}
+
+			if (nextStatus === 'HOD_APPROVED' && !can(actor, 'approve_grades_hod')) {
+				throw new Error('Forbidden: missing approve_grades_hod permission.');
+			}
+			if (nextStatus === 'QA_APPROVED' && !can(actor, 'approve_grades_qa')) {
+				throw new Error('Forbidden: missing approve_grades_qa permission.');
+			}
+			if (nextStatus === 'TVET_APPROVED' && !can(actor, 'approve_grades_tvet')) {
+				throw new Error('Forbidden: missing approve_grades_tvet permission.');
+			}
+
+			const skippingOptional = nextStatus === 'FINALIZED' && ['HOD_APPROVED', 'QA_APPROVED'].includes(current);
+			if (nextStatus === 'FINALIZED') {
+				if (current === 'TVET_APPROVED' && !can(actor, 'finalize_grades_registrar')) {
+					throw new Error('Forbidden: missing finalize_grades_registrar permission.');
+				}
+
+				if (skippingOptional) {
+					if (!note || !note.trim()) {
+						throw new Error('A note is required when QA/TVET steps are skipped before finalization.');
+					}
+					const canFinalizeBySkip = can(actor, 'finalize_grades_registrar') || can(actor, 'approve_grades_hod');
+					if (!canFinalizeBySkip) {
+						throw new Error('Forbidden: only Registrar or HOD can finalize when optional steps are skipped.');
+					}
+				}
+			}
+
+			const parsed = this.parseSubmissionNote(submission.note);
+			const currentNote = (typeof note === 'string' && note.trim()) ? note.trim() : parsed.note_text;
+			const workflowHistory = [
+				...parsed.workflow_history,
+				{
+					status: nextStatus,
+					completed_at: new Date().toISOString(),
+					performed_by: actor?.email || `user:${actor?.id || 'unknown'}`
+				}
+			];
+
+			await submission.update({
+				status: nextStatus,
+				note: this.serializeSubmissionNote(currentNote, workflowHistory)
+			}, { transaction: t });
+
+			if (nextStatus === 'FINALIZED') {
+				const batch = await Batch.findByPk(submission.batch_id, { transaction: t, lock: t.LOCK.UPDATE });
+				if (batch?.grading_policy_id) {
+					await GradingPolicy.update(
+						{ is_locked: true },
+						{ where: { policy_id: batch.grading_policy_id }, transaction: t }
+					);
+				}
+			}
+
+			await t.commit();
+			return this.formatSubmissionForView(submission);
+		} catch (error) {
+			await t.rollback();
+			throw error;
+		}
+	}
+
+	async calculateStudentFinalGrade(studentId, moduleId, batchId) {
+		const batch = await Batch.findByPk(batchId);
+		if (!batch) throw new Error('Batch not found');
+		if (!batch.grading_policy_id) throw new Error('Batch has no grading policy assigned.');
+
+		const grades = await StudentGrade.findAll({
+			where: { student_pk: studentId, batch_id: batchId },
+			include: [{
+				model: AssessmentTask,
+				as: 'task',
+				required: true,
+				include: [{
+					model: AssessmentPlan,
+					as: 'plan',
+					required: true,
+					where: { module_id: moduleId, batch_id: batchId }
+				}]
+			}]
+		});
+
+		const totalScore = Number(grades.reduce((sum, grade) => sum + Number(grade.obtained_score), 0).toFixed(2));
+
+		const scale = await GradeScaleItem.findOne({
+			where: {
+				policy_id: batch.grading_policy_id,
+				min_score: { [Op.lte]: totalScore },
+				max_score: { [Op.gte]: totalScore }
+			},
+			order: [['min_score', 'DESC']]
+		});
+
+		if (!scale) {
+			throw new Error(`No grade scale range matched score ${totalScore} for batch policy.`);
+		}
+
+		const [enrollment] = await ModuleEnrollment.findOrCreate({
+			where: {
+				student_pk: studentId,
+				module_id: moduleId,
+				batch_id: batchId
+			},
+			defaults: {
+				final_score: totalScore,
+				letter_grade: scale.letter_grade,
+				grade_points: scale.grade_points,
+				status: scale.is_pass ? 'PASSED' : 'FAILED'
+			}
+		});
+
+		if (!enrollment.isNewRecord) {
+			await enrollment.update({
+				final_score: totalScore,
+				letter_grade: scale.letter_grade,
+				grade_points: scale.grade_points,
+				status: scale.is_pass ? 'PASSED' : 'FAILED'
+			});
+		}
+
+		return {
+			student_pk: studentId,
+			module_id: moduleId,
+			batch_id: batchId,
+			total_score: totalScore,
+			letter_grade: scale.letter_grade,
+			grade_points: Number(scale.grade_points),
+			is_pass: !!scale.is_pass,
+			module_status: scale.is_pass ? 'PASSED' : 'FAILED'
+		};
+	}
+}
+
+export default new GradingService();

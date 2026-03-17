@@ -110,7 +110,7 @@ async login(email, password) {
         {
           model: Person,
           as: 'person',
-          required: false
+          required: true
         },
         { model: Role, as: 'roles' }
       ],

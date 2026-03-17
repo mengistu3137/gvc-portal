@@ -1,61 +1,9 @@
 {
   "info": {
-    "name": "Grand Valley College - Student Management System",
-    "description": "Complete GVC API Collection with Auto Token Management",
+    "name": "Grand Valley College API - Route Aligned",
+    "description": "Refactored collection matching implemented Express routes under /api",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000/api",
-      "type": "string"
-    },
-    {
-      "key": "authToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "userId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "departmentId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "studentId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "instructorId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "moduleId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "sectorId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "occupationId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "ucId",
-      "value": "",
-      "type": "string"
-    }
-  ],
   "auth": {
     "type": "bearer",
     "bearer": [
@@ -66,160 +14,92 @@
       }
     ]
   },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "sectorId", "value": "", "type": "string" },
+    { "key": "occupationId", "value": "", "type": "string" },
+    { "key": "levelId", "value": "4", "type": "string" },
+    { "key": "moduleId", "value": "", "type": "string" },
+    { "key": "batchId", "value": "", "type": "string" },
+    { "key": "academicYearId", "value": "", "type": "string" },
+    { "key": "levelModuleId", "value": "", "type": "string" },
+    { "key": "instructorId", "value": "", "type": "string" },
+    { "key": "staffId", "value": "", "type": "string" },
+    { "key": "studentId", "value": "", "type": "string" }
+  ],
   "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "exec": [
-          "// Pre-request script for authentication",
-          "if (pm.collectionVariables.get('authToken')) {",
-          "    pm.request.headers.upsert({",
-          "        key: 'Authorization',",
-          "        value: 'Bearer ' + pm.collectionVariables.get('authToken')",
-          "    });",
-          "}"
-        ],
-        "type": "text/javascript"
-      }
-    },
     {
       "listen": "test",
       "script": {
+        "type": "text/javascript",
         "exec": [
-          "// Extract and store data from responses",
-          "if (pm.response.code === 200 || pm.response.code === 201) {",
-          "    const response = pm.response.json();",
-          "    ",
-          "    // Store auth token from login",
-          "    if (response.token) {",
-          "        pm.collectionVariables.set('authToken', response.token);",
-          "        console.log('✅ Token stored successfully');",
-          "    }",
-          "    ",
-          "    // Store user data",
-          "    if (response.user && response.user.id) {",
-          "        pm.collectionVariables.set('userId', response.user.id);",
-          "    }",
-          "    ",
-          "    // Store department ID",
-          "    if (response.data && response.data.id && pm.request.url.toString().includes('departments')) {",
-          "        pm.collectionVariables.set('departmentId', response.data.id);",
-          "        console.log('📚 Department ID stored:', response.data.id);",
-          "    }",
-          "    ",
-          "    // Store student ID",
-          "    if (response.data && response.data.id && pm.request.url.toString().includes('students')) {",
-          "        pm.collectionVariables.set('studentId', response.data.id);",
-          "        console.log('👨‍🎓 Student ID stored:', response.data.id);",
-          "    }",
-          "    ",
-          "    // Store instructor ID",
-          "    if (response.data && response.data.id && pm.request.url.toString().includes('instructors')) {",
-          "        pm.collectionVariables.set('instructorId', response.data.id);",
-          "        console.log('👨‍🏫 Instructor ID stored:', response.data.id);",
-          "    }",
-          "    ",
-          "    // Store curriculum data",
-          "    if (response.data && response.data.id) {",
-          "        if (pm.request.url.toString().includes('modules')) {",
-          "            pm.collectionVariables.set('moduleId', response.data.id);",
-          "            console.log('📖 Module ID stored:', response.data.id);",
-          "        }",
-          "        if (pm.request.url.toString().includes('sectors')) {",
-          "            pm.collectionVariables.set('sectorId', response.data.id);",
-          "            console.log('🏢 Sector ID stored:', response.data.id);",
-          "        }",
-          "        if (pm.request.url.toString().includes('occupations')) {",
-          "            pm.collectionVariables.set('occupationId', response.data.id);",
-          "            console.log('💼 Occupation ID stored:', response.data.id);",
-          "        }",
-          "        if (pm.request.url.toString().includes('ucs')) {",
-          "            pm.collectionVariables.set('ucId', response.data.id);",
-          "            console.log('📋 Unit of Competence ID stored:', response.data.id);",
-          "        }",
-          "    }",
+          "if (pm.response.code >= 200 && pm.response.code < 300) {",
+          "  let response = {};",
+          "  try { response = pm.response.json(); } catch (e) {}",
+          "",
+          "  if (response.token) pm.collectionVariables.set('authToken', response.token);",
+          "  if (response.user && response.user.user_id) pm.collectionVariables.set('userId', String(response.user.user_id));",
+          "",
+          "  const data = response.data || {};",
+          "  if (data.user_id) pm.collectionVariables.set('userId', String(data.user_id));",
+          "  if (data.sector_id) pm.collectionVariables.set('sectorId', String(data.sector_id));",
+          "  if (data.occupation_id) pm.collectionVariables.set('occupationId', String(data.occupation_id));",
+          "  if (data.level_id) pm.collectionVariables.set('levelId', String(data.level_id));",
+          "  if (data.module_id) pm.collectionVariables.set('moduleId', String(data.module_id));",
+          "  if (data.batch_id) pm.collectionVariables.set('batchId', String(data.batch_id));",
+          "  if (data.academic_year_id) pm.collectionVariables.set('academicYearId', String(data.academic_year_id));",
+          "  if (data.level_module_id) pm.collectionVariables.set('levelModuleId', String(data.level_module_id));",
+          "  if (data.instructor_id) pm.collectionVariables.set('instructorId', String(data.instructor_id));",
+          "  if (data.staff_id) pm.collectionVariables.set('staffId', String(data.staff_id));",
+          "  if (data.student_pk) pm.collectionVariables.set('studentId', String(data.student_pk));",
+          "",
+          "  if (!pm.collectionVariables.get('instructorId') && response.rows && response.rows.length && response.rows[0].instructor_id) {",
+          "    pm.collectionVariables.set('instructorId', String(response.rows[0].instructor_id));",
+          "  }",
+          "  if (!pm.collectionVariables.get('studentId') && response.rows && response.rows.length && response.rows[0].student_pk) {",
+          "    pm.collectionVariables.set('studentId', String(response.rows[0].student_pk));",
+          "  }",
           "}"
-        ],
-        "type": "text/javascript"
+        ]
       }
     }
   ],
   "item": [
     {
-      "name": "🔐 Authentication Module",
+      "name": "Auth",
       "item": [
         {
-          "name": "Admin Login",
+          "name": "Login",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"admin@gvc.edu\",\n    \"password\": \"admin123\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"email\": \"admin@gvc.edu\",\n  \"password\": \"admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
-            }
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
           },
           "response": []
         },
         {
-          "name": "Staff Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"email\": \"staff@gvc.edu\",\n    \"password\": \"staff123\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Users (List)",
+          "name": "Get Users",
           "request": {
             "method": "GET",
-            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/auth?page=1&limit=10",
+              "raw": "{{baseUrl}}/auth?page=1&limit=10&search=&status=",
               "host": ["{{baseUrl}}"],
               "path": ["auth"],
               "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "status", "value": "" }
               ]
             }
           },
@@ -230,25 +110,14 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"newuser@gvc.edu\",\n    \"password\": \"password123\",\n    \"role\": \"STAFF\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"first_name\": \"New\",\n  \"last_name\": \"User\",\n  \"email\": \"newuser@gvc.edu\",\n  \"password\": \"password123\",\n  \"status\": \"ACTIVE\",\n  \"must_change_password\": false,\n  \"role_codes\": [\"STAFF\"]\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/auth/create",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "create"]
-            }
+            "url": { "raw": "{{baseUrl}}/auth/create", "host": ["{{baseUrl}}"], "path": ["auth", "create"] }
           },
           "response": []
         },
@@ -257,25 +126,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"ACTIVE\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/auth/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "{{userId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/auth/{{userId}}", "host": ["{{baseUrl}}"], "path": ["auth", "{{userId}}"] }
           },
           "response": []
         },
@@ -283,915 +141,479 @@
           "name": "Delete User",
           "request": {
             "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/auth/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "{{userId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/auth/{{userId}}", "host": ["{{baseUrl}}"], "path": ["auth", "{{userId}}"] }
           },
           "response": []
         }
       ]
     },
-
-{
-    "name": "📚 Academics Module",
-
-  "item": [
     {
-      "name": "Sectors",
+      "name": "Academics",
       "item": [
         {
           "name": "Create Sector",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"sector_code\": \"HLT\",\n  \"sector_name\": \"Health Sector\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/sectors",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "sectors"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/sectors", "host": ["{{baseUrl}}"], "path": ["academics", "sectors"] }
+          },
+          "response": []
         },
         {
-          "name": "Get All Sectors",
+          "name": "Get Sectors",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
-              "raw": "{{baseUrl}}/academics/sectors",
+              "raw": "{{baseUrl}}/academics/sectors?search=",
               "host": ["{{baseUrl}}"],
-              "path": ["academics", "sectors"]
+              "path": ["academics", "sectors"],
+              "query": [{ "key": "search", "value": "" }]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Get Sector By ID",
+          "name": "Get Sector By Id",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/sectors/{{sectorId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "sectors", "{{sectorId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/sectors/{{sectorId}}", "host": ["{{baseUrl}}"], "path": ["academics", "sectors", "{{sectorId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Update Sector",
           "request": {
             "method": "PUT",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"sector_name\": \"Health Sciences Sector\",\n  \"sector_code\": \"HSC\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"sector_name\": \"Health Sciences Sector\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/sectors/{{sectorId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "sectors", "{{sectorId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/sectors/{{sectorId}}", "host": ["{{baseUrl}}"], "path": ["academics", "sectors", "{{sectorId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Delete Sector",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/sectors/{{sectorId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "sectors", "{{sectorId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Occupations",
-      "item": [
+            "url": { "raw": "{{baseUrl}}/academics/sectors/{{sectorId}}", "host": ["{{baseUrl}}"], "path": ["academics", "sectors", "{{sectorId}}"] }
+          },
+          "response": []
+        },
         {
           "name": "Create Occupation",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"sector_id\": 1,\n  \"occupation_code\": \"NUR\",\n  \"occupation_name\": \"Nursing\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"sector_id\": {{sectorId}},\n  \"occupation_code\": \"NUR\",\n  \"occupation_name\": \"Nursing\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/occupations",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "occupations"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/occupations", "host": ["{{baseUrl}}"], "path": ["academics", "occupations"] }
+          },
+          "response": []
         },
         {
-          "name": "Get All Occupations",
+          "name": "Get Occupations",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
-              "raw": "{{baseUrl}}/academics/occupations",
+              "raw": "{{baseUrl}}/academics/occupations?page=1&limit=10&search=&sector_id=",
               "host": ["{{baseUrl}}"],
-              "path": ["academics", "occupations"]
+              "path": ["academics", "occupations"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "sector_id", "value": "" }
+              ]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Get Occupation By ID",
+          "name": "Get Occupation By Id",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/occupations/{{occupationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "occupations", "{{occupationId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/occupations/{{occupationId}}", "host": ["{{baseUrl}}"], "path": ["academics", "occupations", "{{occupationId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Update Occupation",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"occupation_name\": \"Advanced Nursing\",\n  \"occupation_code\": \"ADN\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"occupation_name\": \"Advanced Nursing\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/occupations/{{occupationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "occupations", "{{occupationId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/occupations/{{occupationId}}", "host": ["{{baseUrl}}"], "path": ["academics", "occupations", "{{occupationId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Delete Occupation",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/occupations/{{occupationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "occupations", "{{occupationId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Levels",
-      "item": [
+            "url": { "raw": "{{baseUrl}}/academics/occupations/{{occupationId}}", "host": ["{{baseUrl}}"], "path": ["academics", "occupations", "{{occupationId}}"] }
+          },
+          "response": []
+        },
         {
           "name": "Create Level",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"level_id\": 4,\n  \"occupation_id\": 1,\n  \"level_name\": \"IV\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"level_id\": 4,\n  \"occupation_id\": {{occupationId}},\n  \"level_name\": \"IV\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/levels",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "levels"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/levels", "host": ["{{baseUrl}}"], "path": ["academics", "levels"] }
+          },
+          "response": []
         },
         {
-          "name": "Get All Levels",
+          "name": "Get Levels",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
-              "raw": "{{baseUrl}}/academics/levels",
+              "raw": "{{baseUrl}}/academics/levels?occupation_id=",
               "host": ["{{baseUrl}}"],
-              "path": ["academics", "levels"]
+              "path": ["academics", "levels"],
+              "query": [{ "key": "occupation_id", "value": "" }]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Get Level By ID (Composite)",
+          "name": "Get Level By Composite Id",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/academics/levels/{{levelId}}/{{occupationId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "levels", "{{levelId}}", "{{occupationId}}"]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Update Level (Composite)",
+          "name": "Update Level",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"level_name\": \"V\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/academics/levels/{{levelId}}/{{occupationId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "levels", "{{levelId}}", "{{occupationId}}"]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Delete Level (Composite)",
+          "name": "Delete Level",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/academics/levels/{{levelId}}/{{occupationId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "levels", "{{levelId}}", "{{occupationId}}"]
             }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Modules",
-      "item": [
+          },
+          "response": []
+        },
         {
           "name": "Create Module",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"m_code\": \"NUR-MOD-001\",\n  \"occupation_id\": 1,\n  \"unit_competency\": \"Provide comprehensive nursing care to patients in clinical settings\",\n  \"theory_hours\": 80,\n  \"practical_hours\": 120,\n  \"cooperative_hours\": 40,\n  \"learning_hours\": 240,\n  \"credit_units\": 15.5\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"m_code\": \"NUR-MOD-001\",\n  \"occupation_id\": {{occupationId}},\n  \"unit_competency\": \"Provide comprehensive nursing care\",\n  \"theory_hours\": 80,\n  \"practical_hours\": 120,\n  \"cooperative_hours\": 40,\n  \"learning_hours\": 240,\n  \"credit_units\": 15.5\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/modules",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "modules"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/modules", "host": ["{{baseUrl}}"], "path": ["academics", "modules"] }
+          },
+          "response": []
         },
         {
-          "name": "Get All Modules",
+          "name": "Get Modules",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
-              "raw": "{{baseUrl}}/academics/modules?occupation_id=1",
+              "raw": "{{baseUrl}}/academics/modules?page=1&limit=10&search=&occupation_id=",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "modules"],
               "query": [
-                {
-                  "key": "occupation_id",
-                  "value": "1"
-                }
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "occupation_id", "value": "" }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Get Module By ID",
+          "name": "Get Module By Id",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/modules/{{moduleId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "modules", "{{moduleId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/modules/{{moduleId}}", "host": ["{{baseUrl}}"], "path": ["academics", "modules", "{{moduleId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Update Module",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"unit_competency\": \"Provide advanced comprehensive nursing care\",\n  \"theory_hours\": 90,\n  \"practical_hours\": 140,\n  \"credit_units\": 18.0\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"unit_competency\": \"Provide advanced nursing care\",\n  \"credit_units\": 18\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/modules/{{moduleId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "modules", "{{moduleId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/modules/{{moduleId}}", "host": ["{{baseUrl}}"], "path": ["academics", "modules", "{{moduleId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Delete Module",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/modules/{{moduleId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "modules", "{{moduleId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Academic Years",
-      "item": [
+            "url": { "raw": "{{baseUrl}}/academics/modules/{{moduleId}}", "host": ["{{baseUrl}}"], "path": ["academics", "modules", "{{moduleId}}"] }
+          },
+          "response": []
+        },
         {
           "name": "Create Academic Year",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"academic_year_label\": \"2023/2024\",\n  \"start_date\": \"2023-09-01\",\n  \"end_date\": \"2024-08-31\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"academic_year_label\": \"2025/2026\",\n  \"start_date\": \"2025-09-01\",\n  \"end_date\": \"2026-08-31\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/academic-years",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "academic-years"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/academic-years", "host": ["{{baseUrl}}"], "path": ["academics", "academic-years"] }
+          },
+          "response": []
         },
         {
-          "name": "Get All Academic Years",
+          "name": "Get Academic Years",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/academic-years",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "academic-years"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/academic-years", "host": ["{{baseUrl}}"], "path": ["academics", "academic-years"] }
+          },
+          "response": []
         },
         {
-          "name": "Get Academic Year By ID",
+          "name": "Get Academic Year By Id",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/academics/academic-years/{{academicYearId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "academic-years", "{{academicYearId}}"]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Update Academic Year",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"start_date\": \"2023-09-15\",\n  \"end_date\": \"2024-09-15\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"end_date\": \"2026-09-15\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/academics/academic-years/{{academicYearId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "academic-years", "{{academicYearId}}"]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Academic Year",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/academics/academic-years/{{academicYearId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "academic-years", "{{academicYearId}}"]
             }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Batches",
-      "item": [
+          },
+          "response": []
+        },
         {
           "name": "Create Batch",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"occupation_id\": 1,\n  \"academic_year_id\": 1,\n  \"level_id\": 4,\n  \"track_type\": \"REGULAR\",\n  \"capacity\": 45\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"occupation_id\": {{occupationId}},\n  \"academic_year_id\": {{academicYearId}},\n  \"level_id\": {{levelId}},\n  \"track_type\": \"REGULAR\",\n  \"capacity\": 45\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/batches",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "batches"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/batches", "host": ["{{baseUrl}}"], "path": ["academics", "batches"] }
+          },
+          "response": []
         },
         {
-          "name": "Create Extension Batch",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"occupation_id\": 1,\n  \"academic_year_id\": 1,\n  \"level_id\": 4,\n  \"track_type\": \"EXTENSION\",\n  \"capacity\": 30\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/academics/batches",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "batches"]
-            }
-          }
-        },
-        {
-          "name": "Get All Batches",
+          "name": "Get Batches",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
-              "raw": "{{baseUrl}}/academics/batches?occupation_id=1&level_id=4",
+              "raw": "{{baseUrl}}/academics/batches?page=1&limit=10&search=&occupation_id=&level_id=",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "batches"],
               "query": [
-                {
-                  "key": "occupation_id",
-                  "value": "1"
-                },
-                {
-                  "key": "level_id",
-                  "value": "4"
-                }
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "occupation_id", "value": "" },
+                { "key": "level_id", "value": "" }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Get Batch By ID",
+          "name": "Get Batch By Id",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/batches/{{batchId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "batches", "{{batchId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/batches/{{batchId}}", "host": ["{{baseUrl}}"], "path": ["academics", "batches", "{{batchId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Update Batch",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"capacity\": 50,\n  \"track_type\": \"REGULAR\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"capacity\": 50\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/academics/batches/{{batchId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "batches", "{{batchId}}"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/batches/{{batchId}}", "host": ["{{baseUrl}}"], "path": ["academics", "batches", "{{batchId}}"] }
+          },
+          "response": []
         },
         {
           "name": "Delete Batch",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/academics/batches/{{batchId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "batches", "{{batchId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Curriculum (Level-Module Assignment)",
-      "item": [
-        {
-          "name": "Assign Module to Level",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"occupation_id\": 1,\n  \"level_id\": 4,\n  \"m_code\": \"NUR-MOD-001\",\n  \"semester\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/academics/curriculum",
-              "host": ["{{baseUrl}}"],
-              "path": ["academics", "curriculum"]
-            }
-          }
+            "url": { "raw": "{{baseUrl}}/academics/batches/{{batchId}}", "host": ["{{baseUrl}}"], "path": ["academics", "batches", "{{batchId}}"] }
+          },
+          "response": []
         },
         {
-          "name": "Get Modules by Level & Occupation",
+          "name": "Add Module To Curriculum",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occupation_id\": {{occupationId}},\n  \"level_id\": {{levelId}},\n  \"module_id\": {{moduleId}},\n  \"semester\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/academics/curriculum", "host": ["{{baseUrl}}"], "path": ["academics", "curriculum"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Curriculum By Occupation And Level",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/academics/curriculum/{{occupationId}}/{{levelId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "curriculum", "{{occupationId}}", "{{levelId}}"]
             }
-          }
+          },
+          "response": []
         },
         {
-          "name": "Remove Module from Level",
+          "name": "Remove Curriculum Entry",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/academics/curriculum/{{levelModuleId}}",
               "host": ["{{baseUrl}}"],
               "path": ["academics", "curriculum", "{{levelModuleId}}"]
             }
-          }
+          },
+          "response": []
         }
       ]
-    }
-  ],
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000/api"
     },
     {
-      "key": "token",
-      "value": "your_jwt_token_here"
-    },
-    {
-      "key": "sectorId",
-      "value": "1"
-    },
-    {
-      "key": "occupationId",
-      "value": "1"
-    },
-    {
-      "key": "levelId",
-      "value": "4"
-    },
-    {
-      "key": "moduleId",
-      "value": "1"
-    },
-    {
-      "key": "batchId",
-      "value": "1"
-    },
-    {
-      "key": "academicYearId",
-      "value": "1"
-    },
-    {
-      "key": "levelModuleId",
-      "value": "1"
-    }
-  ]
-},
-
-	
-    {
-      "name": "👨‍🏫 Instructors Module",
+      "name": "Instructors",
       "item": [
         {
           "name": "Create Instructor",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"email\": \"john.doe@gvc.edu\",\n    \"department_id\": 1,\n    \"qualification\": \"MSc in Computer Science\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"occupation_id\": {{occupationId}},\n  \"qualification\": \"MSc in Computer Science\",\n  \"employment_status\": \"ACTIVE\",\n  \"account\": {\n    \"email\": \"john.doe@gvc.edu\",\n    \"password\": \"TempPass123!\",\n    \"role_codes\": [\"INSTRUCTOR\"]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
             },
+            "url": { "raw": "{{baseUrl}}/instructors", "host": ["{{baseUrl}}"], "path": ["instructors"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Instructors",
+          "request": {
+            "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/instructors/create",
+              "raw": "{{baseUrl}}/instructors?page=1&limit=10&search=&status=&occupation_id=",
               "host": ["{{baseUrl}}"],
-              "path": ["instructors", "create"]
+              "path": ["instructors"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "status", "value": "" },
+                { "key": "occupation_id", "value": "" }
+              ]
             }
           },
           "response": []
         },
         {
-          "name": "Get All Instructors",
+          "name": "Get Instructor By Id",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/instructors",
-              "host": ["{{baseUrl}}"],
-              "path": ["instructors"]
-            }
+            "url": { "raw": "{{baseUrl}}/instructors/{{instructorId}}", "host": ["{{baseUrl}}"], "path": ["instructors", "{{instructorId}}"] }
           },
           "response": []
         },
@@ -1199,26 +621,13 @@
           "name": "Update Instructor",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"qualification\": \"PhD in Computer Science\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"qualification\": \"PhD in Computer Science\"\n}",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/instructors/{{instructorId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["instructors", "{{instructorId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/instructors/{{instructorId}}", "host": ["{{baseUrl}}"], "path": ["instructors", "{{instructorId}}"] }
           },
           "response": []
         },
@@ -1226,154 +635,150 @@
           "name": "Delete Instructor",
           "request": {
             "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/instructors/{{instructorId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["instructors", "{{instructorId}}"]
-            }
+            "url": { "raw": "{{baseUrl}}/instructors/{{instructorId}}", "host": ["{{baseUrl}}"], "path": ["instructors", "{{instructorId}}"] }
           },
           "response": []
         }
       ]
     },
     {
-  "name": "👨‍🎓 Students Module",
-  "item": [
-    {
-      "name": "1. Create Student (Automatic ID)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}",
-            "type": "text"
+      "name": "Staff",
+      "item": [
+        {
+          "name": "Create Staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Amina\",\n  \"last_name\": \"Yusuf\",\n  \"staff_type\": \"REGISTRAR\",\n  \"employment_status\": \"ACTIVE\",\n  \"account\": {\n    \"email\": \"amina.yusuf@gvc.edu\",\n    \"password\": \"TempPass123!\",\n    \"role_codes\": [\"REGISTRAR\"]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/staff", "host": ["{{baseUrl}}"], "path": ["staff"] }
           },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n    \"batch_id\": 1,\n    \"first_name\": \"Jabiru\",\n    \"middle_name\": \"Abamilki\",\n    \"last_name\": \"Aba jiru\",\n    \"gender\": \"M\",\n    \"reg_year\": 2015,\n    \"date_of_birth\": \"1998-05-15\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
+          "response": []
         },
-        "url": {
-          "raw": "{{baseUrl}}/students",
-          "host": ["{{baseUrl}}"],
-          "path": ["students"],
-          "description": "Logic: Provide batch_id. Occupation and Level are inherited from Batch metadata. ID generated: GVC[OccCode][Track][Seq]/[YY]"
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "2. Get All Students (PFSS)",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/students?search=&status=ACTIVE&page=1&limit=10&occupation_id=&level_id=",
-          "host": ["{{baseUrl}}"],
-          "path": ["students"],
-          "query": [
-            { "key": "search", "value": "", "description": "Search by ID or Name" },
-            { "key": "status", "value": "ACTIVE" },
-            { "key": "page", "value": "1" },
-            { "key": "limit", "value": "10" },
-            { "key": "occupation_id", "value": "", "description": "Filter by Occupation" },
-            { "key": "level_id", "value": "", "description": "Filter by NTQF Level" }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "3. Get Student By ID",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/students/{{studentPk}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["students", "{{studentPk}}"],
-          "description": "Uses the Internal Primary Key (student_pk)"
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "4. Update Student Profile",
-      "request": {
-        "method": "PUT",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}",
-            "type": "text"
+        {
+          "name": "Get Staff",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/staff?page=1&limit=10&search=&staff_type=&employment_status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["staff"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "staff_type", "value": "" },
+                { "key": "employment_status", "value": "" }
+              ]
+            }
           },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n    \"status\": \"SUSPENDED\",\n    \"middle_name\": \"Modified Name\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
+          "response": []
         },
-        "url": {
-          "raw": "{{baseUrl}}/students/{{studentPk}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["students", "{{studentPk}}"]
+        {
+          "name": "Get Staff By Id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/staff/{{staffId}}", "host": ["{{baseUrl}}"], "path": ["staff", "{{staffId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Staff",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employment_status\": \"ON_LEAVE\",\n  \"phone\": \"+251900000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/staff/{{staffId}}", "host": ["{{baseUrl}}"], "path": ["staff", "{{staffId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Staff",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/staff/{{staffId}}", "host": ["{{baseUrl}}"], "path": ["staff", "{{staffId}}"] }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     },
     {
-      "name": "5. Archive Student (Soft Delete)",
-      "request": {
-        "method": "DELETE",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}",
-            "type": "text"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/students/{{studentPk}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["students", "{{studentPk}}"],
-          "description": "Sets deleted_at timestamp. Record is moved to archive logic."
+      "name": "Students",
+      "item": [
+        {
+          "name": "Create Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"batch_id\": {{batchId}},\n  \"first_name\": \"Jabiru\",\n  \"middle_name\": \"Abamilki\",\n  \"last_name\": \"Aba jiru\",\n  \"gender\": \"M\",\n  \"reg_year\": 2026,\n  \"date_of_birth\": \"1998-05-15\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/students", "host": ["{{baseUrl}}"], "path": ["students"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Students",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/students?search=&status=ACTIVE&page=1&limit=10&occupation_id=&level_id=",
+              "host": ["{{baseUrl}}"],
+              "path": ["students"],
+              "query": [
+                { "key": "search", "value": "" },
+                { "key": "status", "value": "ACTIVE" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "occupation_id", "value": "" },
+                { "key": "level_id", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student By Id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/students/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["students", "{{studentId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Student",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUSPENDED\",\n  \"middle_name\": \"Modified Name\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/students/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["students", "{{studentId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Student",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/students/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["students", "{{studentId}}"] }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     }
-  ]
-}
-   
   ]
 }

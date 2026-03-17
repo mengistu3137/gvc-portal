@@ -76,6 +76,11 @@ Batch.init({
   occupation_id: { type: DataTypes.INTEGER, allowNull: false },
   academic_year_id: { type: DataTypes.INTEGER, allowNull: false },
   level_id: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
+  grading_policy_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: true,
+    references: { model: 'grading_policies', key: 'policy_id' }
+  },
   batch_code: { type: DataTypes.STRING(40), unique: true },
    track_type: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
   capacity: { type: DataTypes.INTEGER, defaultValue: 0 }
