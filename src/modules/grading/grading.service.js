@@ -1,15 +1,7 @@
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import { Batch } from '../academics/academic.model.js';
-import {
-	AssessmentPlan,
-	AssessmentTask,
-	StudentGrade,
-	GradeSubmission,
-	GradingPolicy,
-	GradeScaleItem,
-	ModuleEnrollment
-} from './grading.model.js';
+import { StudentGrade, GradeSubmission, GradingPolicy, ModuleEnrollment } from './grading.model.js';
 import { mapRowsByFieldMapping, parseSpreadsheetRowsFromFile } from '../../utils/spreadsheetImport.js';
 
 const can = (actor, permission) => (actor?.permissions || []).includes(permission);
@@ -82,103 +74,18 @@ class GradingService {
 		return policy;
 	}
 
-	async validateAssessmentPlanWeights(planId, transaction) {
-		const plan = await AssessmentPlan.findByPk(planId, { transaction });
-		if (!plan) throw new Error('Assessment plan not found');
-
-		const tasks = await AssessmentTask.findAll({ where: { plan_id: planId }, transaction });
-		const total = tasks.reduce((sum, task) => sum + Number(task.max_weight), 0);
-
-		if (Number(total.toFixed(2)) !== Number(plan.total_weight)) {
-			throw new Error(`Assessment task weights must sum to ${plan.total_weight}. Current sum: ${total.toFixed(2)}`);
-		}
-
-		return { valid: true, total: Number(total.toFixed(2)) };
-	}
-
-	async ensureGradeScaleRangeDoesNotOverlap(policyId, minScore, maxScore, excludeScaleItemId = null, transaction) {
-		const where = {
-			policy_id: policyId,
-			min_score: { [Op.lte]: maxScore },
-			max_score: { [Op.gte]: minScore }
-		};
-
-		if (excludeScaleItemId) {
-			where.scale_item_id = { [Op.ne]: excludeScaleItemId };
-		}
-
-		const overlap = await GradeScaleItem.findOne({ where, transaction });
-		if (overlap) {
-			throw new Error('Grade range overlaps with an existing scale item for this policy.');
-		}
-	}
-
 	async createGradingPolicy(data, actor) {
 		if (!can(actor, 'manage_grading_policy')) {
 			throw new Error('Forbidden: missing manage_grading_policy permission.');
 		}
 
-		return GradingPolicy.create({ policy_name: data.policy_name, is_locked: false });
-	}
+		const payload = {
+			policy_name: data.policy_name,
+			is_locked: false,
+			grade_scale: Array.isArray(data.grade_scale) ? data.grade_scale : []
+		};
 
-	async addGradeScaleItem(policyId, data, actor) {
-		if (!can(actor, 'manage_grading_policy')) {
-			throw new Error('Forbidden: missing manage_grading_policy permission.');
-		}
-
-		const t = await sequelize.transaction();
-		try {
-			await this.assertPolicyNotLocked(policyId, t);
-
-			await this.ensureGradeScaleRangeDoesNotOverlap(
-				policyId,
-				Number(data.min_score),
-				Number(data.max_score),
-				null,
-				t
-			);
-
-			const created = await GradeScaleItem.create({
-				policy_id: policyId,
-				letter_grade: data.letter_grade,
-				min_score: data.min_score,
-				max_score: data.max_score,
-				grade_points: data.grade_points,
-				is_pass: data.is_pass
-			}, { transaction: t });
-
-			await t.commit();
-			return created;
-		} catch (error) {
-			await t.rollback();
-			throw error;
-		}
-	}
-
-	async updateGradeScaleItem(scaleItemId, data, actor) {
-		if (!can(actor, 'manage_grading_policy')) {
-			throw new Error('Forbidden: missing manage_grading_policy permission.');
-		}
-
-		const t = await sequelize.transaction();
-		try {
-			const item = await GradeScaleItem.findByPk(scaleItemId, { transaction: t, lock: t.LOCK.UPDATE });
-			if (!item) throw new Error('Grade scale item not found');
-
-			const policy = await this.assertPolicyNotLocked(item.policy_id, t);
-
-			const minScore = Object.prototype.hasOwnProperty.call(data, 'min_score') ? Number(data.min_score) : Number(item.min_score);
-			const maxScore = Object.prototype.hasOwnProperty.call(data, 'max_score') ? Number(data.max_score) : Number(item.max_score);
-
-			await this.ensureGradeScaleRangeDoesNotOverlap(policy.policy_id, minScore, maxScore, item.scale_item_id, t);
-
-			await item.update(data, { transaction: t });
-			await t.commit();
-			return item;
-		} catch (error) {
-			await t.rollback();
-			throw error;
-		}
+		return GradingPolicy.create(payload);
 	}
 
 	async upsertStudentGradeInternal(data, transaction = null) {
@@ -193,32 +100,32 @@ class GradingService {
 			throw new Error('Grades can only be edited while submission is in DRAFT or REJECTED status.');
 		}
 
-		const task = await AssessmentTask.findByPk(data.task_id, {
-			include: [{ model: AssessmentPlan, as: 'plan', attributes: ['module_id', 'batch_id'] }],
-			transaction
-		});
-		if (!task || !task.plan) throw new Error('Assessment task or plan not found');
-		if (Number(task.plan.module_id) !== Number(data.module_id) || Number(task.plan.batch_id) !== Number(data.batch_id)) {
-			throw new Error('Task does not belong to the specified module/batch context.');
-		}
-
-		const existing = await StudentGrade.findOne({
-			where: { student_pk: data.student_pk, task_id: data.task_id },
-			transaction,
-			lock: transaction ? transaction.LOCK.UPDATE : undefined
-		});
-
-		if (existing) {
-			await existing.update({ obtained_score: data.obtained_score }, { transaction });
-			return existing;
-		}
-
-		return StudentGrade.create({
+		const where = {
 			student_pk: data.student_pk,
-			task_id: data.task_id,
-			batch_id: data.batch_id,
-			obtained_score: data.obtained_score
-		}, { transaction });
+			module_id: data.module_id,
+			batch_id: data.batch_id
+		};
+
+		const defaults = {
+			assessment_scores: data.assessment_scores || [],
+			total_score: data.total_score ?? null,
+			final_score: data.final_score ?? null,
+			letter_grade: data.letter_grade ?? null,
+			grade_points: data.grade_points ?? null,
+			status: data.status || 'PENDING',
+			submitted_by: data.submitted_by || null,
+			submitted_at: data.submitted_at || null,
+			approved_by: data.approved_by || null,
+			approved_at: data.approved_at || null
+		};
+
+		const [grade, created] = await StudentGrade.findOrCreate({ where, defaults, transaction, lock: transaction ? transaction.LOCK.UPDATE : undefined });
+
+		if (!created) {
+			await grade.update(defaults, { transaction });
+		}
+
+		return grade;
 	}
 
 	async upsertStudentGrade(data, actor) {
@@ -244,10 +151,14 @@ class GradingService {
 			for (const row of rows) {
 				const data = {
 					student_pk: Number(row.student_pk),
-					task_id: Number(row.task_id),
 					batch_id: Number(row.batch_id),
 					module_id: Number(row.module_id),
-					obtained_score: Number(row.obtained_score)
+					assessment_scores: row.assessment_scores ?? [],
+					total_score: row.total_score,
+					final_score: row.final_score,
+					letter_grade: row.letter_grade,
+					grade_points: row.grade_points,
+					status: row.status
 				};
 				results.push(await this.upsertStudentGradeInternal(data, t));
 			}
@@ -292,17 +203,6 @@ class GradingService {
 
 			if (!transitions[current] || !transitions[current].includes(nextStatus)) {
 				throw new Error(`Invalid workflow transition: ${current} -> ${nextStatus}`);
-			}
-
-			if (nextStatus === 'SUBMITTED') {
-				const plan = await AssessmentPlan.findOne({
-					where: { batch_id: submission.batch_id, module_id: submission.module_id },
-					transaction: t
-				});
-				if (!plan) {
-					throw new Error('Assessment plan is required before submission can move to SUBMITTED.');
-				}
-				await this.validateAssessmentPlanWeights(plan.plan_id, t);
 			}
 
 			if (nextStatus === 'HOD_APPROVED' && !can(actor, 'approve_grades_hod')) {
@@ -371,30 +271,17 @@ class GradingService {
 		if (!batch) throw new Error('Batch not found');
 		if (!batch.grading_policy_id) throw new Error('Batch has no grading policy assigned.');
 
-		const grades = await StudentGrade.findAll({
-			where: { student_pk: studentId, batch_id: batchId },
-			include: [{
-				model: AssessmentTask,
-				as: 'task',
-				required: true,
-				include: [{
-					model: AssessmentPlan,
-					as: 'plan',
-					required: true,
-					where: { module_id: moduleId, batch_id: batchId }
-				}]
-			}]
-		});
+		const grade = await StudentGrade.findOne({ where: { student_pk: studentId, module_id: moduleId, batch_id: batchId } });
+		if (!grade) throw new Error('Student grade not found for module/batch.');
 
-		const totalScore = Number(grades.reduce((sum, grade) => sum + Number(grade.obtained_score), 0).toFixed(2));
+		const policy = await GradingPolicy.findByPk(batch.grading_policy_id);
+		const scaleItems = Array.isArray(policy?.grade_scale) ? policy.grade_scale : [];
+		const totalScore = Number(grade.final_score ?? grade.total_score ?? 0);
 
-		const scale = await GradeScaleItem.findOne({
-			where: {
-				policy_id: batch.grading_policy_id,
-				min_score: { [Op.lte]: totalScore },
-				max_score: { [Op.gte]: totalScore }
-			},
-			order: [['min_score', 'DESC']]
+		const scale = scaleItems.find((item) => {
+			const min = Number(item.min_score);
+			const max = Number(item.max_score);
+			return totalScore >= min && totalScore <= max;
 		});
 
 		if (!scale) {
@@ -411,6 +298,7 @@ class GradingService {
 				final_score: totalScore,
 				letter_grade: scale.letter_grade,
 				grade_points: scale.grade_points,
+				credits_earned: scale.is_pass ? null : null,
 				status: scale.is_pass ? 'PASSED' : 'FAILED'
 			}
 		});

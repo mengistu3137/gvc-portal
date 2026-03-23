@@ -20,6 +20,7 @@ Instructor.init({
   },
   hire_date: { type: DataTypes.DATEONLY },
   qualification: { type: DataTypes.STRING(180) },
+  specializations: { type: DataTypes.JSON },
   employment_status: { 
     type: DataTypes.ENUM('ACTIVE', 'ON_LEAVE', 'INACTIVE'), 
     defaultValue: 'ACTIVE' 

@@ -23,9 +23,9 @@ Occupation.init({
 export class Level extends Model {}
 Level.init({
   level_id: { type: DataTypes.TINYINT.UNSIGNED, primaryKey: true },
-  occupation_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  occupation_id: { type: DataTypes.INTEGER, primaryKey: true, allowNull: false },
   level_name: { type: DataTypes.ENUM('I','II','III','IV','V'), allowNull: false }
-}, { sequelize, modelName: 'level', timestamps: false });
+}, { sequelize, modelName: 'level', tableName: 'levels', timestamps: false, underscored: true });
 
 
 
@@ -53,11 +53,27 @@ Module.init({
     }
   },
   learning_hours: { type: DataTypes.INTEGER, defaultValue: 0 },
-  credit_units: { type: DataTypes.DECIMAL(5, 2), allowNull: false }
+  credit_units: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
+  assessments: { type: DataTypes.JSON, allowNull: true }
 }, { 
-  sequelize, modelName: 'module', paranoid: true,
-  
-  hooks: {}
+  sequelize,
+  modelName: 'module',
+  tableName: 'modules',
+  paranoid: true,
+  underscored: true,
+  indexes: [{ unique: true, fields: ['m_code'] }],
+  hooks: {
+    // Keep parity with DB trigger: ensure assessment weights sum to 100 when provided
+    beforeValidate: (module) => {
+      const items = module.assessments;
+      if (Array.isArray(items) && items.length) {
+        const total = items.reduce((acc, cur) => acc + Number(cur?.max_weight || 0), 0);
+        if (Number.isFinite(total) && Math.abs(total - 100) > 1e-6) {
+          throw new Error(`Assessment weights must sum to 100. Current total: ${total}`);
+        }
+      }
+    }
+  }
 });
 
 // 6. ACADEMIC YEAR
@@ -67,7 +83,7 @@ AcademicYear.init({
   academic_year_label: { type: DataTypes.STRING(20), unique: true, allowNull: false },
   start_date: { type: DataTypes.DATEONLY, allowNull: false },
   end_date: { type: DataTypes.DATEONLY, allowNull: false }
-}, { sequelize, modelName: 'academic_year', timestamps: false });
+}, { sequelize, modelName: 'academic_year', tableName: 'academic_years', timestamps: false, underscored: true });
 
 // 7. BATCH (Automated batch_code)
 export class Batch extends Model {}
@@ -82,11 +98,15 @@ Batch.init({
     references: { model: 'grading_policies', key: 'policy_id' }
   },
   batch_code: { type: DataTypes.STRING(40), unique: true },
-   track_type: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
-  capacity: { type: DataTypes.INTEGER, defaultValue: 0 }
+  track_type: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
+  capacity: { type: DataTypes.INTEGER, defaultValue: 0 },
+  metadata: { type: DataTypes.JSON, allowNull: true }
 }, { 
   sequelize, 
   modelName: 'batch',
+  tableName: 'batches',
+  paranoid: true,
+  underscored: true,
   hooks: {
     beforeValidate: async (batch) => {
       const occ = await Occupation.findByPk(batch.occupation_id);
@@ -128,8 +148,22 @@ LevelModule.init({
     defaultValue: 1
   },
 
+  is_elective: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
 
-}, { sequelize, modelName: 'level_module', timestamps: false });
+
+}, { 
+  sequelize, 
+  modelName: 'level_module',
+  tableName: 'level_modules',
+  timestamps: false,
+  underscored: true,
+  indexes: [
+    { fields: ['level_id', 'occupation_id', 'semester'] }
+  ]
+});
 
 // --- RELATIONSHIPS ---
 

@@ -11,6 +11,7 @@ import {
   Batch,
   LevelModule
 } from '../modules/academics/academic.model.js';
+import { GradingPolicy } from '../modules/grading/grading.model.js';
 
 const seedDatabase = async () => {
   try {
@@ -19,15 +20,13 @@ const seedDatabase = async () => {
     // 1. Sync Database (do not alter schema here; use migrations for schema changes)
     await sequelize.sync();
 
-    // 2. Define Permissions
-    // 2. Define Permissions
+    // 2. Define Permissions (deduplicated + updated wording for grading)
     const permissionsData = [
       // AUTH Module
       { permission_code: 'view_users', permission_name: 'View User Accounts', module_scope: 'AUTH' },
       { permission_code: 'manage_users', permission_name: 'Create/Edit/Delete Users', module_scope: 'AUTH' },
-  
+
       // ACADEMICS Module
- 
       { permission_code: 'view_level', permission_name: 'View Levels', module_scope: 'ACADEMICS' },
       { permission_code: 'manage_level', permission_name: 'Create/Edit/Delete Levels', module_scope: 'ACADEMICS' },
       { permission_code: 'view_batch', permission_name: 'View Batches', module_scope: 'ACADEMICS' },
@@ -42,28 +41,33 @@ const seedDatabase = async () => {
       { permission_code: 'manage_module', permission_name: 'Create/Edit/Delete Modules', module_scope: 'ACADEMICS' },
       { permission_code: 'view_academic_year', permission_name: 'View Academic Years', module_scope: 'ACADEMICS' },
       { permission_code: 'manage_academic_year', permission_name: 'Create/Edit/Delete Academic Years', module_scope: 'ACADEMICS' },
-      { permission_code: "manage_curriculum", permission_name: "Manage Curriculum (Level-Module Mapping)", module_scope: "ACADEMICS" },
+      { permission_code: 'manage_curriculum', permission_name: 'Manage Curriculum (Level-Module Mapping)', module_scope: 'ACADEMICS' },
+      { permission_code: 'view_curriculum', permission_name: 'View Curriculum (Level-Module Mapping)', module_scope: 'ACADEMICS' },
+
+      // INSTRUCTORS / STAFF
       { permission_code: 'view_instructors', permission_name: 'View Instructors', module_scope: 'INSTRUCTORS' },
       { permission_code: 'manage_instructors', permission_name: 'Create/Edit/Delete Instructors', module_scope: 'INSTRUCTORS' },
       { permission_code: 'view_staff', permission_name: 'View Staff List', module_scope: 'STAFF' },
       { permission_code: 'manage_staff', permission_name: 'Create/Edit/Delete Staff Records', module_scope: 'STAFF' },
-      { permission_code: 'manage_grading', permission_name: 'Create/Edit Assessment Plans and Grades', module_scope: 'GRADING' },
+
+      // GRADING (JSON-based; no assessment tables)
+      { permission_code: 'manage_grading', permission_name: 'Manage Grades and Submissions', module_scope: 'GRADING' },
       { permission_code: 'approve_grades_hod', permission_name: 'Approve Grades as HOD', module_scope: 'GRADING' },
       { permission_code: 'approve_grades_qa', permission_name: 'Approve Grades as QA', module_scope: 'GRADING' },
       { permission_code: 'approve_grades_tvet', permission_name: 'Approve Grades as TVET', module_scope: 'GRADING' },
       { permission_code: 'finalize_grades_registrar', permission_name: 'Finalize Grades as Registrar', module_scope: 'GRADING' },
-      { permission_code: 'manage_grading_policy', permission_name: 'Create/Edit Grading Policies and Scale Items', module_scope: 'GRADING' },
+      { permission_code: 'manage_grading_policy', permission_name: 'Create/Edit Grading Policies (JSON grade scales)', module_scope: 'GRADING' },
+
+      // ENROLLMENT / PROGRESS
       { permission_code: 'manage_enrollment', permission_name: 'Create/Update Enrollment and Prerequisites', module_scope: 'ENROLLMENT' },
       { permission_code: 'view_academic_progress', permission_name: 'View Student GPA and Academic Progress', module_scope: 'ENROLLMENT' },
-{permission_code:"manage_student", permission_name:"Create/Edit/Delete Student Records", module_scope:"STUDENTS"},
-{permission_code:"view_students", permission_name:"View Student List", module_scope:"STUDENTS"},
-  
-  // STUDENTS Module
-  { permission_code: 'create_student', permission_name: 'Register Students', module_scope: 'STUDENTS' },
-  { permission_code: 'view_students', permission_name: 'View Student List', module_scope: 'STUDENTS' },
-  { permission_code: 'manage_students', permission_name: 'Manage Student Records', module_scope: 'STUDENTS' },
-  { permission_code: 'view_curriculum', permission_name: 'View Curriculum (Level-Module Mapping)', module_scope: 'ACADEMICS' }
-]
+
+      // STUDENTS
+      { permission_code: 'manage_student', permission_name: 'Create/Edit/Delete Student Records', module_scope: 'STUDENTS' },
+      { permission_code: 'view_students', permission_name: 'View Student List', module_scope: 'STUDENTS' },
+      { permission_code: 'create_student', permission_name: 'Register Students', module_scope: 'STUDENTS' },
+      { permission_code: 'manage_students', permission_name: 'Manage Student Records', module_scope: 'STUDENTS' }
+    ];
     await Permission.bulkCreate(permissionsData, { ignoreDuplicates: true });
     console.log('✅ Permissions Seeded');
 
@@ -85,7 +89,7 @@ const seedDatabase = async () => {
 
     // 4. Map Permissions
     const allPerms = await Permission.findAll();
-    await adminRole.setPermissions(allPerms);
+    await adminRole.setGranted_permissions(allPerms);
     
     const registrarPerms = await Permission.findAll({
       where: {
@@ -104,8 +108,8 @@ const seedDatabase = async () => {
     const studentPerms = await Permission.findAll({
       where: { permission_code: ['view_students'] }
     });
-    await registrarRole.setPermissions(registrarPerms);
-    await studentRole.setPermissions(studentPerms);
+    await registrarRole.setGranted_permissions(registrarPerms);
+    await studentRole.setGranted_permissions(studentPerms);
 
     console.log('✅ Permissions mapped to Roles');
 
@@ -180,6 +184,20 @@ const seedDatabase = async () => {
       }
     });
 
+    // 6b. Seed a default grading policy aligned to new JSON schema
+    const defaultGradeScale = [
+      { letter_grade: 'A', min_score: 85, max_score: 100, grade_points: 4.0, is_pass: true },
+      { letter_grade: 'B', min_score: 75, max_score: 84.99, grade_points: 3.0, is_pass: true },
+      { letter_grade: 'C', min_score: 65, max_score: 74.99, grade_points: 2.0, is_pass: true },
+      { letter_grade: 'D', min_score: 50, max_score: 64.99, grade_points: 1.0, is_pass: true },
+      { letter_grade: 'F', min_score: 0, max_score: 49.99, grade_points: 0, is_pass: false }
+    ];
+
+    const [defaultPolicy] = await GradingPolicy.findOrCreate({
+      where: { policy_name: 'Default Policy' },
+      defaults: { is_locked: false, grade_scale: defaultGradeScale }
+    });
+
     const [nursingBatch] = await Batch.findOrCreate({
       where: {
         occupation_id: nursingOccupation.occupation_id,
@@ -188,7 +206,8 @@ const seedDatabase = async () => {
         track_type: 'REGULAR'
       },
       defaults: {
-        capacity: 45
+        capacity: 45,
+        grading_policy_id: defaultPolicy.policy_id
       }
     });
 
@@ -200,7 +219,8 @@ const seedDatabase = async () => {
         track_type: 'REGULAR'
       },
       defaults: {
-        capacity: 40
+        capacity: 40,
+        grading_policy_id: defaultPolicy.policy_id
       }
     });
 

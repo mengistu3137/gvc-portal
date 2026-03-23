@@ -33,7 +33,7 @@ async login(email, password) {
         as: 'roles',
         include: [{
           model: Permission,
-          as: 'permissions'
+            as: 'granted_permissions'
         }]
       }
     ]
@@ -50,7 +50,7 @@ async login(email, password) {
   const userRoles = user.roles || [];
 
   const permissions = userRoles.flatMap(role =>
-    (role.permissions || []).map(p => p.permission_code)
+    (role.granted_permissions || []).map(p => p.permission_code)
   );
 
   const token = jwt.sign(

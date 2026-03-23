@@ -27,7 +27,8 @@ Student.init({
   level_id: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
   batch_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
   admission_date: { type: DataTypes.DATEONLY, defaultValue: DataTypes.NOW },
-  status: { type: DataTypes.ENUM('ACTIVE', 'SUSPENDED', 'GRADUATED', 'DROPPED'), defaultValue: 'ACTIVE' }
+  status: { type: DataTypes.ENUM('ACTIVE', 'SUSPENDED', 'GRADUATED', 'DROPPED'), defaultValue: 'ACTIVE' },
+  contact_info: { type: DataTypes.JSON }
 }, { 
   sequelize, 
   modelName: 'student', 
