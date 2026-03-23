@@ -1,5 +1,17 @@
 import AcademicService from './academic.service.js';
 
+function validateAssessments(assessments) {
+  if (assessments === undefined) return;
+  if (!Array.isArray(assessments)) {
+    throw new Error('assessments must be an array of {name, weight} items');
+  }
+
+  const totalWeight = assessments.reduce((sum, item) => sum + Number(item?.weight || 0), 0);
+  if (Math.round(totalWeight) !== 100) {
+    throw new Error('Assessment weights must sum to 100');
+  }
+}
+
 // --- CURRICULUM HANDLERS ---
 
 export const addModuleToLevel = async (req, res, next) => {
@@ -102,6 +114,7 @@ export const deleteOccupation = async (req, res, next) => {
 // --- MODULE HANDLERS ---
 export const createModule = async (req, res, next) => {
   try {
+    validateAssessments(req.body.assessments);
     const data = await AcademicService.createModule(req.body);
     res.status(201).json({ success: true, data });
   } catch (error) { next(error); }
@@ -124,6 +137,7 @@ export const getModuleById = async (req, res, next) => {
 export const updateModule = async (req, res, next) => {
   try {
     // Updated: Now uses module_id (integer) instead of m_code
+    validateAssessments(req.body.assessments);
     const data = await AcademicService.updateModule(req.params.id, req.body);
     res.json({ success: true, message: "Module updated successfully", data });
   } catch (error) { next(error); }

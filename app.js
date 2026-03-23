@@ -23,7 +23,7 @@ dotenv.config();
 
 const app = express();
 
-const defaultAllowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const defaultAllowedOrigins = ['http://localhost:5173','http://localhost:5174', 'http://127.0.0.1:5173'];
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : defaultAllowedOrigins;
@@ -44,6 +44,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+
+// Lightweight health check for uptime monitors
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
 
 // Main Route - This handles EVERYTHING under /api
 app.use('/api', apiRouter);

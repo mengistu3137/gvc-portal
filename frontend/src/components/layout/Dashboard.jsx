@@ -18,10 +18,11 @@ const SidebarLink = ({ to, icon: Icon, label }) => {
   return (
     <Link 
       to={to} 
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+      aria-current={isActive ? 'page' : undefined}
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-brand-surface ${
         isActive 
-          ? 'bg-brand-blue text-white shadow-md' 
-          : 'text-gray-600 hover:bg-brand-blue/10 hover:text-brand-blue'
+          ? 'bg-brand-blue text-white shadow-md ring-1 ring-brand-blue/60' 
+          : 'text-slate-700 hover:bg-brand-blue/10 hover:text-brand-blue'
       }`}
     >
       <Icon size={20} />

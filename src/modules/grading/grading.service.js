@@ -6,6 +6,33 @@ import { mapRowsByFieldMapping, parseSpreadsheetRowsFromFile } from '../../utils
 
 const can = (actor, permission) => (actor?.permissions || []).includes(permission);
 
+function validateGradeScale(scale) {
+	if (!Array.isArray(scale)) {
+		throw new Error('grade_scale must be an array');
+	}
+
+	for (const item of scale) {
+		if (item == null || typeof item !== 'object') {
+			throw new Error('grade_scale items must be objects');
+		}
+
+		const min = Number(item.min_score);
+		const max = Number(item.max_score);
+
+		if (Number.isNaN(min) || Number.isNaN(max)) {
+			throw new Error('grade_scale items require numeric min_score and max_score');
+		}
+
+		if (min < 0 || max > 100 || min > max) {
+			throw new Error('grade_scale scores must be between 0 and 100 with min_score <= max_score');
+		}
+
+		if (!item.letter_grade) {
+			throw new Error('grade_scale items require letter_grade');
+		}
+	}
+}
+
 class GradingService {
 	parseSubmissionNote(note) {
 		if (!note) {
@@ -79,6 +106,8 @@ class GradingService {
 			throw new Error('Forbidden: missing manage_grading_policy permission.');
 		}
 
+		validateGradeScale(data.grade_scale || []);
+
 		const payload = {
 			policy_name: data.policy_name,
 			is_locked: false,
@@ -86,6 +115,38 @@ class GradingService {
 		};
 
 		return GradingPolicy.create(payload);
+	}
+
+	async listPolicies() {
+		return GradingPolicy.findAll({ order: [['policy_name', 'ASC']] });
+	}
+
+	async getPolicy(policyId) {
+		const policy = await GradingPolicy.findByPk(policyId);
+		if (!policy) throw new Error('Grading policy not found');
+		return policy;
+	}
+
+	async updateGradingPolicy(policyId, data, actor) {
+		if (!can(actor, 'manage_grading_policy')) {
+			throw new Error('Forbidden: missing manage_grading_policy permission.');
+		}
+
+		validateGradeScale(data.grade_scale || []);
+
+		const t = await sequelize.transaction();
+		try {
+			const policy = await this.assertPolicyNotLocked(policyId, t);
+			await policy.update({
+				policy_name: data.policy_name ?? policy.policy_name,
+				grade_scale: Array.isArray(data.grade_scale) ? data.grade_scale : policy.grade_scale
+			}, { transaction: t });
+			await t.commit();
+			return policy;
+		} catch (error) {
+			await t.rollback();
+			throw error;
+		}
 	}
 
 	async upsertStudentGradeInternal(data, transaction = null) {

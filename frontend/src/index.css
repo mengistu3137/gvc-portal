@@ -7,6 +7,12 @@
   --color-brand-background: #f4f8fd;
   --color-brand-surface: #ffffff;
   --color-brand-ink: #0b2647;
+
+  /* Semantic tokens used across the app */
+  --color-primary: var(--color-brand-blue);
+  --color-primary-foreground: #ffffff;
+  --color-surface-muted: #ecf2fb;
+  --color-border-strong: #d4dbea;
   
   --font-family-sans: 'Manrope', 'Segoe UI', 'Arial', sans-serif;
   

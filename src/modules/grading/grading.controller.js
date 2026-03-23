@@ -73,6 +73,27 @@ export const createPolicy = async (req, res, next) => {
 	} catch (error) { next(error); }
 };
 
+export const listPolicies = async (req, res, next) => {
+	try {
+		const rows = await GradingService.listPolicies();
+		res.json({ success: true, count: rows.length, rows });
+	} catch (error) { next(error); }
+};
+
+export const getPolicy = async (req, res, next) => {
+	try {
+		const data = await GradingService.getPolicy(req.params.id);
+		res.json({ success: true, data });
+	} catch (error) { next(error); }
+};
+
+export const updatePolicy = async (req, res, next) => {
+	try {
+		const data = await GradingService.updateGradingPolicy(req.params.id, req.body, req.user);
+		res.json({ success: true, data, message: 'Grading policy updated' });
+	} catch (error) { next(error); }
+};
+
 export const calculateFinalGrade = async (req, res, next) => {
 	try {
 		const { studentId, moduleId, batchId } = req.params;

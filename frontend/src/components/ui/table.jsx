@@ -5,7 +5,7 @@ export function Table({ className, ...props }) {
 }
 
 export function TableHeader({ className, ...props }) {
-  return <thead className={cn('bg-primary/5', className)} {...props} />;
+  return <thead className={cn('bg-brand-blue/5', className)} {...props} />;
 }
 
 export function TableBody({ className, ...props }) {
@@ -13,14 +13,14 @@ export function TableBody({ className, ...props }) {
 }
 
 export function TableRow({ className, ...props }) {
-  return <tr className={cn('border-b border-primary/10', className)} {...props} />;
+  return <tr className={cn('border-b border-brand-blue/10', className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }) {
   return (
     <th
       className={cn(
-        'h-8 px-2.5 text-left align-middle text-[10px] font-bold uppercase tracking-wide text-primary',
+        'h-8 px-2.5 text-left align-middle text-[11px] font-bold uppercase tracking-wide text-brand-blue',
         className
       )}
       {...props}

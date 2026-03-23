@@ -29,6 +29,7 @@ export function StudentListDemo() {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
+  const [errors, setErrors] = useState({});
 
   const studentCrud = useCrud('students');
   const batchesCrud = useCrud('academics/batches');
@@ -40,25 +41,41 @@ export function StudentListDemo() {
   const updateStudent = studentCrud.update();
   const removeStudent = studentCrud.remove();
 
+  const isMutating = createStudent.isPending || updateStudent.isPending;
+
   const onChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: '' }));
   };
 
   const resetForm = () => {
     setForm(defaultForm);
     setEditingId(null);
+    setErrors({});
   };
 
   const onSubmit = (event) => {
     event.preventDefault();
-    if (!form.first_name.trim() || !form.last_name.trim() || !form.batch_id) {
-      return;
-    }
+    if (isMutating) return;
+
+    const nextErrors = {
+      first_name: form.first_name.trim() ? '' : 'First name is required',
+      last_name: form.last_name.trim() ? '' : 'Last name is required',
+      batch_id: form.batch_id ? '' : 'Batch is required',
+      gender: form.gender ? '' : 'Gender is required',
+    };
+
+    const hasError = Object.values(nextErrors).some(Boolean);
+    setErrors(nextErrors);
+    if (hasError) return;
 
     const payload = {
       ...form,
       batch_id: Number(form.batch_id),
+      gender: form.gender,
     };
+
+    console.log('Submitting student payload', payload);
 
     if (editingId) {
       updateStudent.mutate(
@@ -213,29 +230,60 @@ export function StudentListDemo() {
         </CardHeader>
         <CardContent>
           <form className="grid gap-2 md:grid-cols-3" onSubmit={onSubmit}>
-            <Input value={form.first_name} onChange={(event) => onChange('first_name', event.target.value)} placeholder="First Name" required />
-            <Input value={form.middle_name} onChange={(event) => onChange('middle_name', event.target.value)} placeholder="Middle Name" />
-            <Input value={form.last_name} onChange={(event) => onChange('last_name', event.target.value)} placeholder="Last Name" required />
-            <Input value={form.email} onChange={(event) => onChange('email', event.target.value)} placeholder="Email" />
-            <Input value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Phone" />
-            <Input value={form.gender} onChange={(event) => onChange('gender', event.target.value)} placeholder="Gender" />
-            <select
-              value={form.batch_id}
-              onChange={(event) => onChange('batch_id', event.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-              required
-            >
-              <option value="">Select Batch</option>
-              {(batchesQuery.data || []).map((batch) => (
-                <option key={batch.batch_id} value={batch.batch_id}>
-                  {batch.batch_code}
-                </option>
-              ))}
-            </select>
-            <Input type="date" value={form.admission_date} onChange={(event) => onChange('admission_date', event.target.value)} />
-            <Input value={form.status} onChange={(event) => onChange('status', event.target.value)} placeholder="Status" />
+            <div className="flex flex-col gap-1">
+              <Input value={form.first_name} onChange={(event) => onChange('first_name', event.target.value)} placeholder="First Name" required />
+              {errors.first_name ? <p className="text-[11px] text-red-600">{errors.first_name}</p> : null}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input value={form.middle_name} onChange={(event) => onChange('middle_name', event.target.value)} placeholder="Middle Name" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input value={form.last_name} onChange={(event) => onChange('last_name', event.target.value)} placeholder="Last Name" required />
+              {errors.last_name ? <p className="text-[11px] text-red-600">{errors.last_name}</p> : null}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input value={form.email} onChange={(event) => onChange('email', event.target.value)} placeholder="Email" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input value={form.phone} onChange={(event) => onChange('phone', event.target.value)} placeholder="Phone" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <select
+                value={form.gender}
+                onChange={(event) => onChange('gender', event.target.value)}
+                className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-brand-ink"
+                required
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+              {errors.gender ? <p className="text-[11px] text-red-600">{errors.gender}</p> : null}
+            </div>
+            <div className="flex flex-col gap-1">
+              <select
+                value={form.batch_id}
+                onChange={(event) => onChange('batch_id', event.target.value)}
+                className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                required
+              >
+                <option value="">Select Batch</option>
+                {(batchesQuery.data || []).map((batch) => (
+                  <option key={batch.batch_id} value={batch.batch_id}>
+                    {batch.batch_code}
+                  </option>
+                ))}
+              </select>
+              {errors.batch_id ? <p className="text-[11px] text-red-600">{errors.batch_id}</p> : null}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input type="date" value={form.admission_date} onChange={(event) => onChange('admission_date', event.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Input value={form.status} onChange={(event) => onChange('status', event.target.value)} placeholder="Status" />
+            </div>
             <div className="md:col-span-3 flex gap-2">
-              <Button type="submit" disabled={createStudent.isPending || updateStudent.isPending}>
+              <Button type="submit" disabled={isMutating}>
                 {editingId ? 'Update Student' : 'Create Student'}
               </Button>
               {editingId ? (

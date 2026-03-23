@@ -1,0 +1,6 @@
+first_name,last_name,email,phone,date_of_birth,gender,address
+John,Smith,john.smith@university.edu,+1234567890,1985-03-15,Male,"123 Main St, Cityville"
+Sarah,Johnson,sarah.johnson@university.edu,+1234567891,1982-07-22,Female,"456 Oak Ave, Townsville"
+Michael,Brown,michael.brown@university.edu,+1234567892,1978-11-08,Male,"789 Pine Rd, Villagetown"
+Emily,Davis,emily.davis@university.edu,+1234567893,1980-05-30,Female,"321 Elm St, Cityville"
+David,Wilson,david.wilson@university.edu,+1234567894,1975-09-12,Male,"654 Maple Dr, Townsville"

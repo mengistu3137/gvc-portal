@@ -58,14 +58,14 @@ export function DataTable({
           className="max-w-xs"
         />
         {isFetching && !isLoading ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+          <span className="inline-flex items-center gap-1 text-[11px] text-brand-blue">
             <LoaderCircle size={14} className="animate-spin" />
             Syncing
           </span>
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-primary/15 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-brand-blue/12 bg-white shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

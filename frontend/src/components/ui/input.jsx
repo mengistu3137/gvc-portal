@@ -4,7 +4,7 @@ export function Input({ className, ...props }) {
   return (
     <input
       className={cn(
-        'h-8 w-full rounded-md border border-primary/20 bg-white px-2.5 text-xs text-brand-ink placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35',
+        'h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-brand-ink placeholder:text-slate-500 shadow-sm transition focus-visible:outline-none focus-visible:border-brand-blue focus-visible:ring-2 focus-visible:ring-brand-blue/30',
         className
       )}
       {...props}
