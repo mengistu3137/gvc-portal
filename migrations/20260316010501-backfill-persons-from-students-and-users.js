@@ -9,41 +9,50 @@ const splitNameFromEmail = (email) => {
   };
 };
 
+const hasColumn = async (queryInterface, tableName, columnName) => {
+  const desc = await queryInterface.describeTable(tableName);
+  return Boolean(desc[columnName]);
+};
+
 export default {
   async up(queryInterface, Sequelize) {
     const t = await queryInterface.sequelize.transaction();
     try {
-      const students = await queryInterface.sequelize.query(
-        `SELECT student_pk, first_name, middle_name, last_name, gender, date_of_birth, deleted_at
-         FROM students
-         WHERE person_id IS NULL`,
-        { type: Sequelize.QueryTypes.SELECT, transaction: t }
-      );
-
-      for (const row of students) {
-        const [result] = await queryInterface.sequelize.query(
-          `INSERT INTO persons
-           (first_name, middle_name, last_name, gender, date_of_birth, created_at, updated_at, deleted_at)
-           VALUES (?, ?, ?, ?, ?, NOW(), NOW(), ?)` ,
-          {
-            replacements: [
-              row.first_name,
-              row.middle_name || null,
-              row.last_name,
-              row.gender || null,
-              row.date_of_birth || null,
-              row.deleted_at || null
-            ],
-            transaction: t
-          }
+      // On a fresh install the students table has person_id from the start
+      // and no legacy name columns — skip the student backfill.
+      if (await hasColumn(queryInterface, 'students', 'first_name')) {
+        const students = await queryInterface.sequelize.query(
+          `SELECT student_pk, first_name, middle_name, last_name, gender, date_of_birth, deleted_at
+           FROM students
+           WHERE person_id IS NULL`,
+          { type: Sequelize.QueryTypes.SELECT, transaction: t }
         );
 
-        const personId = result.insertId;
+        for (const row of students) {
+          const [result] = await queryInterface.sequelize.query(
+            `INSERT INTO persons
+             (first_name, middle_name, last_name, gender, date_of_birth, created_at, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, NOW(), NOW(), ?)` ,
+            {
+              replacements: [
+                row.first_name,
+                row.middle_name || null,
+                row.last_name,
+                row.gender || null,
+                row.date_of_birth || null,
+                row.deleted_at || null
+              ],
+              transaction: t
+            }
+          );
 
-        await queryInterface.sequelize.query(
-          `UPDATE students SET person_id = ? WHERE student_pk = ?`,
-          { replacements: [personId, row.student_pk], transaction: t }
-        );
+          const personId = result.insertId;
+
+          await queryInterface.sequelize.query(
+            `UPDATE students SET person_id = ? WHERE student_pk = ?`,
+            { replacements: [personId, row.student_pk], transaction: t }
+          );
+        }
       }
 
       const users = await queryInterface.sequelize.query(

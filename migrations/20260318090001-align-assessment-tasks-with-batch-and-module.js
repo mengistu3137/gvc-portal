@@ -30,10 +30,18 @@ export default {
 
       const refreshed = await queryInterface.describeTable('assessment_tasks');
       if (refreshed.batch_id && refreshed.module_id) {
-        await queryInterface.addIndex('assessment_tasks', ['batch_id', 'module_id'], {
-          name: 'idx_assessment_tasks_batch_module',
-          transaction: t
-        });
+        const [[indexExists]] = await queryInterface.sequelize.query(
+          `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'assessment_tasks'
+             AND INDEX_NAME = 'idx_assessment_tasks_batch_module'`,
+          { transaction: t }
+        );
+        if (!indexExists) {
+          await queryInterface.addIndex('assessment_tasks', ['batch_id', 'module_id'], {
+            name: 'idx_assessment_tasks_batch_module',
+            transaction: t
+          });
+        }
       }
 
       await t.commit();

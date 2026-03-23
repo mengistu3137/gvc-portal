@@ -591,7 +591,7 @@ export default {
         admission_date: {
           type: Sequelize.DATEONLY,
           allowNull: true,
-          defaultValue: Sequelize.literal('CURRENT_DATE')
+          defaultValue: Sequelize.literal('(CURRENT_DATE)')
         },
         status: {
           type: Sequelize.ENUM('ACTIVE', 'SUSPENDED', 'GRADUATED', 'DROPPED'),
