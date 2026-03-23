@@ -1,4 +1,5 @@
 import { ModulePrerequisite } from './enrollment.model.js';
+import { Module } from '../academics/academic.model.js';
 import EnrollmentService from './enrollment.service.js';
 
 export const createEnrollment = async (req, res, next) => {
@@ -52,5 +53,16 @@ export const deleteEnrollment = async (req, res, next) => {
   try {
     const data = await EnrollmentService.deleteEnrollment(req.params.id, req.user);
     res.json({ success: true, message: 'Enrollment removed', data });
+  } catch (error) { next(error); }
+};
+
+export const listPrerequisites = async (req, res, next) => {
+  try {
+    const { moduleId } = req.params;
+    const rows = await ModulePrerequisite.findAll({
+      where: moduleId ? { module_id: moduleId } : {},
+      include: [{ model: Module, as: 'required_module', attributes: ['module_id', 'm_code', 'unit_competency'] }]
+    });
+    res.json({ success: true, rows });
   } catch (error) { next(error); }
 };

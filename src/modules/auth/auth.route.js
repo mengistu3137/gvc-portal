@@ -1,5 +1,5 @@
 import express from 'express';
-import {deleteUser, createUser, getUsers,updateUser, login} from './auth.controller.js';
+import {deleteUser, createUser, getUsers,updateUser, login, getRoles, getPermissions} from './auth.controller.js';
 // Both imported from the same file now
 import { authenticate, authorize } from '../../middlewares/authGuard.js';
 
@@ -31,6 +31,18 @@ router.delete('/:id',
   authenticate, 
   authorize('manage_users'), 
   deleteUser
+);
+
+router.get('/roles',
+  authenticate,
+  authorize('view_users'),
+  getRoles
+);
+
+router.get('/permissions',
+  authenticate,
+  authorize('view_users'),
+  getPermissions
 );
 
 export default router;

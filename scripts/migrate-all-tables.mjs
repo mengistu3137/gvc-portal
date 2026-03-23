@@ -8,6 +8,8 @@ import '../src/modules/academics/academic.model.js';
 import '../src/modules/auth/auth.model.js';
 import '../src/modules/students/student.model.js';
 import '../src/modules/instructors/instructor.model.js';
+import '../src/modules/grading/grading.model.js';
+import '../src/modules/enrollment/enrollment.model.js';
 
 dotenv.config();
 
@@ -33,7 +35,8 @@ async function migrateAllTables() {
   try {
     await waitForDatabase();
     const forceSync = process.env.SYNC_FORCE === 'true';
-    await sequelize.sync({ alter: false, force: forceSync });
+    const alterSync = process.env.SYNC_ALTER === 'true';
+    await sequelize.sync({ alter: alterSync, force: forceSync });
     console.log('All tables migrated successfully.');
     process.exit(0);
   } catch (error) {

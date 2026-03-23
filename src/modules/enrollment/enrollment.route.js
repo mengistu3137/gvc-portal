@@ -6,7 +6,8 @@ import {
   checkEligibility,
   calculateGpa,
   createPrerequisite,
-  deleteEnrollment
+  deleteEnrollment,
+  listPrerequisites
 } from './enrollment.controller.js';
 import { authenticate, authorize } from '../../middlewares/authGuard.js';
 
@@ -18,6 +19,8 @@ router.post('/', auth('manage_enrollment'), createEnrollment);
 router.put('/:id', auth('manage_enrollment'), updateEnrollment);
 router.delete('/:id', auth('manage_enrollment'), deleteEnrollment);
 router.post('/prerequisites', auth('manage_enrollment'), createPrerequisite);
+router.get('/prerequisites', auth('manage_enrollment'), listPrerequisites);
+router.get('/prerequisites/:moduleId', auth('manage_enrollment'), listPrerequisites);
 router.get('/eligibility/:studentId/:moduleId', auth('manage_enrollment'), checkEligibility);
 router.get('/gpa/:studentId/:batchId', auth('view_academic_progress'), calculateGpa);
 

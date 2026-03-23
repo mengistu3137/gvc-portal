@@ -3,6 +3,8 @@ import {
   BookOpenCheck,
   GraduationCap,
   LayoutDashboard,
+  NotebookPen,
+  Shield,
   ShieldCheck,
   UserCircle2,
   UserRound,
@@ -17,8 +19,11 @@ const navItems = [
   { label: 'Instructors', icon: UserRound, to: '/instructors' },
   { label: 'Staff', icon: UsersRound, to: '/staff' },
   { label: 'Grading', icon: BookOpenCheck, to: '/grading' },
+  { label: 'Assessment', icon: NotebookPen, to: '/assessment' },
   { label: 'Students', icon: GraduationCap, to: '/students' },
   { label: 'Enrollment', icon: ShieldCheck, to: '/enrollment' },
+  { label: 'Registrar', icon: Shield, to: '/registrar' },
+  { label: 'Admin', icon: Shield, to: '/admin' },
   { label: 'Explorer', icon: Bell, to: '/academic-explorer' },
 ];
 
@@ -70,11 +75,11 @@ export function AppLayout({ children }) {
       <div className="pl-16">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex h-14 items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary">
+            <div className="flex items-center gap-2 text-xs text-primary">
               {crumbs.map((crumb, index) => (
                 <span key={crumb + index} className="inline-flex items-center gap-2">
                   {index > 0 ? <span className="text-slate-300">/</span> : null}
-                  <span className={cn(index === crumbs.length - 1 && 'font-semibold text-primary lowercase first-letter:uppercase')}>
+                  <span className={cn(index === crumbs.length - 1 && 'font-semibold text-primary')}>
                     {crumb}
                   </span>
                 </span>

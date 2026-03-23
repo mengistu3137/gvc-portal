@@ -41,3 +41,17 @@ export const deleteUser = async (req, res, next) => {
     res.json({ success: true, message: "User deleted (archived)" });
   } catch (error) { next(error); }
 };
+
+export const getRoles = async (_req, res, next) => {
+  try {
+    const rows = await AuthService.getRoles();
+    res.json({ success: true, rows });
+  } catch (error) { next(error); }
+};
+
+export const getPermissions = async (_req, res, next) => {
+  try {
+    const rows = await AuthService.getPermissions();
+    res.json({ success: true, rows });
+  } catch (error) { next(error); }
+};

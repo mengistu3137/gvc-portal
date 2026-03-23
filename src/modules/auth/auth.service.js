@@ -243,6 +243,15 @@ async login(email, password) {
     if (!user) throw new Error('User not found');
     return await user.destroy(); // Soft delete via paranoid: true
   }
+
+  async getRoles() {
+    const rows = await Role.findAll({ order: [['role_id', 'ASC']], include: [{ model: Permission, as: 'permissions' }] });
+    return rows;
+  }
+
+  async getPermissions() {
+    return Permission.findAll({ order: [['permission_code', 'ASC']] });
+  }
 }
 
 export default new AuthService();
