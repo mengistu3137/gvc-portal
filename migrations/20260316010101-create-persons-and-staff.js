@@ -20,12 +20,20 @@ export default {
         created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
         updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') },
         deleted_at: { type: Sequelize.DATE, allowNull: true }
-      }, { transaction: t });
+      }, { transaction: t, ifNotExists: true });
 
-      await queryInterface.addIndex('persons', ['email'], {
-        name: 'idx_persons_email',
-        transaction: t
-      });
+      // Only add the index if it doesn't already exist (e.g. created by an earlier migration)
+      const [[indexExists]] = await queryInterface.sequelize.query(
+        `SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'persons' AND INDEX_NAME = 'idx_persons_email'`,
+        { transaction: t }
+      );
+      if (!indexExists) {
+        await queryInterface.addIndex('persons', ['email'], {
+          name: 'idx_persons_email',
+          transaction: t
+        });
+      }
 
       await queryInterface.createTable('staff', {
         staff_id: {
@@ -42,6 +50,7 @@ export default {
           onUpdate: 'CASCADE',
           onDelete: 'RESTRICT'
         },
+        staff_code: { type: Sequelize.STRING(30), allowNull: false, unique: true },
         staff_type: {
           type: Sequelize.ENUM('FINANCE', 'REGISTRAR', 'QA', 'ADMIN'),
           allowNull: false
@@ -54,7 +63,7 @@ export default {
         created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
         updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') },
         deleted_at: { type: Sequelize.DATE, allowNull: true }
-      }, { transaction: t });
+      }, { transaction: t, ifNotExists: true });
 
       await t.commit();
     } catch (error) {
