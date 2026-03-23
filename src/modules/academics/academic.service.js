@@ -131,7 +131,7 @@ class AcademicService {
   }
 
   async getModules(query) {
-    const { page = 1, limit = 10, search = '', occupation_id } = query;
+    const { page = 1, limit = 10, search = '', occupation_id, sortBy = 'created_at', sortOrder = 'DESC' } = query;
     const offset = (page - 1) * limit;
 
     const whereClause = {
@@ -150,7 +150,8 @@ class AcademicService {
       where: whereClause,
       include: [{ model: Occupation, as: 'occupation' }],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      order: [[sortBy, sortOrder]]
     });
   }
 

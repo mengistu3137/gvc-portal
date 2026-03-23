@@ -5,7 +5,10 @@ import { AcademicExplorer } from './pages/AcademicExplorer';
 import { EnrollmentManager } from './pages/EnrollmentManager';
 import { GradeApprovalDashboard } from './pages/GradeApprovalDashboard';
 import { InstructorManager } from './pages/InstructorManager';
+import { InstructorAssessment } from './pages/InstructorAssessment';
 import { LoginPage } from './pages/LoginPage';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { RegistrarOps } from './pages/RegistrarOps';
 import { SectorOccupationManager } from './pages/SectorOccupationManager';
 import { StaffManager } from './pages/StaffManager';
 import { StudentListDemo } from './pages/StudentListDemo';
@@ -26,6 +29,9 @@ function App() {
                 <Route path="/instructors" element={<InstructorManager />} />
                 <Route path="/staff" element={<StaffManager />} />
                 <Route path="/enrollment" element={<EnrollmentManager />} />
+                <Route path="/assessment" element={<InstructorAssessment />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/registrar" element={<RegistrarOps />} />
                 <Route path="/academic-explorer" element={<AcademicExplorer />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

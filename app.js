@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
+import { Sequelize } from 'sequelize';
 import sequelize from './src/config/database.js';
 import { errorHandler } from './src/middlewares/errorHandler.js';
 
@@ -12,7 +13,6 @@ import './src/modules/academics/academic.model.js';
 import './src/modules/staff/staff.model.js';
 import './src/modules/instructors/instructor.model.js';
 import './src/modules/students/student.model.js';
-import './src/modules/finance/finance.model.js';
 import './src/modules/grading/grading.model.js';
 import './src/modules/enrollment/enrollment.model.js';
 
@@ -23,7 +23,7 @@ dotenv.config();
 
 const app = express();
 
-const defaultAllowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const defaultAllowedOrigins = ['http://localhost:5173'];
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : defaultAllowedOrigins;
@@ -54,6 +54,45 @@ app.use(errorHandler);
 // Database Sync & Server Start
 const PORT = process.env.PORT || 3000;
 
+const ensureGradingSchemaCompatibility = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const table = await queryInterface.describeTable('assessment_tasks');
+
+  if (!table.batch_id) {
+    try {
+      await queryInterface.addColumn('assessment_tasks', 'batch_id', {
+        type: Sequelize.BIGINT.UNSIGNED,
+        allowNull: true
+      });
+    } catch (error) {
+      if (error?.original?.code !== 'ER_DUP_FIELDNAME') {
+        throw error;
+      }
+    }
+  }
+
+  if (!table.module_id) {
+    try {
+      await queryInterface.addColumn('assessment_tasks', 'module_id', {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      });
+    } catch (error) {
+      if (error?.original?.code !== 'ER_DUP_FIELDNAME') {
+        throw error;
+      }
+    }
+  }
+
+  try {
+    await queryInterface.addIndex('assessment_tasks', ['batch_id', 'module_id'], {
+      name: 'idx_assessment_tasks_batch_module'
+    });
+  } catch {
+    // Ignore duplicate-index errors when index already exists.
+  }
+};
+
 const syncDatabase = async () => {
   const shouldAlterSchema = process.env.NODE_ENV === 'development' && process.env.DB_SYNC_ALTER === 'true';
 
@@ -64,6 +103,7 @@ const syncDatabase = async () => {
   }
 
   await sequelize.authenticate();
+  await ensureGradingSchemaCompatibility();
   console.log('Database connection established (no schema alteration outside development).');
 };
 

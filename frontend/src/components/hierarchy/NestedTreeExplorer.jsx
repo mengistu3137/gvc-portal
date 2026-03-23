@@ -18,7 +18,7 @@ function Node({ node, depth, activeId, onSelect }) {
         }}
         className={[
           'flex w-full items-center gap-1 rounded px-2 py-1.5 text-left',
-          isActive ? 'bg-accent/25 text-slate-900' : 'text-slate-700 hover:bg-slate-100',
+          isActive ? 'bg-primary/10 text-primary' : 'text-slate-700 hover:bg-slate-100',
         ].join(' ')}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
@@ -29,7 +29,7 @@ function Node({ node, depth, activeId, onSelect }) {
       </button>
 
       {hasChildren && open ? (
-        <div className="ml-3 border-l border-primary/30">
+        <div className="ml-3 border-l border-slate-200">
           {node.children.map((child) => (
             <Node
               key={child.id}
@@ -47,7 +47,7 @@ function Node({ node, depth, activeId, onSelect }) {
 
 export function NestedTreeExplorer({ nodes = [], activeId, onSelect }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-2">
+    <div className="rounded-md border border-slate-200 bg-slate-50/40 p-2">
       {nodes.map((node) => (
         <Node key={node.id} node={node} depth={0} activeId={activeId} onSelect={onSelect} />
       ))}

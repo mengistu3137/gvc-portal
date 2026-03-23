@@ -87,10 +87,10 @@ export function ImportMapperCard({
         {headers.length > 0 ? (
           <div className="grid gap-2 md:grid-cols-2">
             {requiredFields.map((field) => (
-              <label key={field} className="space-y-1 text-xs font-medium uppercase tracking-wide text-slate-600">
+              <label key={field} className="space-y-1 text-xs font-medium text-slate-600">
                 <span>{field}</span>
                 <select
-                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                  className="w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-sm"
                   value={mapping[field] || ''}
                   onChange={(event) =>
                     setMapping((value) => ({
@@ -128,7 +128,7 @@ export function ImportMapperCard({
 
         {mappedPreview.length > 0 ? (
           <div className="rounded-md border border-slate-200 p-2">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</div>
+            <div className="mb-2 text-xs font-medium text-slate-500">Preview</div>
             <pre className="max-h-40 overflow-auto text-xs text-slate-700">{JSON.stringify(mappedPreview, null, 2)}</pre>
           </div>
         ) : null}

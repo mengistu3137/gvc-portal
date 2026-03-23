@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { HierarchicalHeader } from '../components/hierarchy/HierarchicalHeader';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -9,6 +10,7 @@ import { Textarea } from '../components/ui/textarea';
 import { useCrud } from '../hooks/useCrud';
 import { api } from '../lib/api';
 import { hasPermission } from '../lib/permissions';
+import { Input } from '../components/ui/input';
 
 const STATUS_ACTIONS = {
   DRAFT: [{ label: 'Submit', next: 'SUBMITTED', permission: 'manage_grading' }],
@@ -34,13 +36,34 @@ export function GradeApprovalDashboard() {
   const [skipNotes, setSkipNotes] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [newSubmission, setNewSubmission] = useState({ module_id: '', batch_id: '' });
+  const [selectedPolicyId, setSelectedPolicyId] = useState('');
 
   const submissionsCrud = useCrud('grading/submissions', {
     updatePath: (id) => `/grading/submissions/${id}/status`,
     mapUpdatePayload: (payload) => payload,
   });
-  const submissionsQuery = submissionsCrud.list({ page: 1, limit: 200 });
+  const submissionsQuery = submissionsCrud.list({ page: 1, limit: 200, status: statusFilter || undefined });
   const updateSubmission = submissionsCrud.update();
+
+  const policiesCrud = useCrud('grading/policies', {
+    mapList: (payload) => payload?.rows || payload || [],
+  });
+  const policiesQuery = policiesCrud.list();
+
+  const scaleItemsCrud = useCrud('grading/policies/scale-items', {
+    listPath: (params) => `/grading/policies/${params.policyId}/scale-items`,
+    mapList: (payload) => payload?.rows || payload || [],
+  });
+  const scaleItemsQuery = selectedPolicyId
+    ? scaleItemsCrud.list({ policyId: selectedPolicyId }, { enabled: true })
+    : { data: [], isLoading: false, isFetching: false, error: null };
+
+  const tasksCrud = useCrud('grading/tasks', {
+    mapList: (payload) => payload?.rows || payload || [],
+  });
+  const tasksQuery = tasksCrud.list({ page: 1, limit: 200 });
 
   const handleTransition = (row, targetStatus) => {
     updateSubmission.mutate({
@@ -182,6 +205,26 @@ export function GradeApprovalDashboard() {
     { label: 'Batch: 2015' },
   ];
 
+  const createSubmission = async (event) => {
+    event.preventDefault();
+    if (!newSubmission.module_id || !newSubmission.batch_id) {
+      return;
+    }
+
+    try {
+      await api.post('/grading/submissions', {
+        module_id: Number(newSubmission.module_id),
+        batch_id: Number(newSubmission.batch_id),
+        status: 'DRAFT',
+      });
+      toast.success('Submission created');
+      setNewSubmission({ module_id: '', batch_id: '' });
+      submissionsQuery.refetch();
+    } catch (error) {
+      toast.error(error.message || 'Could not create submission');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <HierarchicalHeader items={hierarchyItems} />
@@ -196,8 +239,45 @@ export function GradeApprovalDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-4">
+            <Input
+              type="number"
+              placeholder="Module ID"
+              value={newSubmission.module_id}
+              onChange={(event) => setNewSubmission((prev) => ({ ...prev, module_id: event.target.value }))}
+            />
+            <Input
+              type="number"
+              placeholder="Batch ID"
+              value={newSubmission.batch_id}
+              onChange={(event) => setNewSubmission((prev) => ({ ...prev, batch_id: event.target.value }))}
+            />
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="SUBMITTED">SUBMITTED</option>
+              <option value="HOD_APPROVED">HOD_APPROVED</option>
+              <option value="QA_APPROVED">QA_APPROVED</option>
+              <option value="TVET_APPROVED">TVET_APPROVED</option>
+              <option value="FINALIZED">FINALIZED</option>
+              <option value="REJECTED">REJECTED</option>
+            </select>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => submissionsQuery.refetch()}>
+                Refresh
+              </Button>
+              <Button type="button" onClick={createSubmission}>
+                New Submission
+              </Button>
+            </div>
+          </div>
+
           <div className="max-w-xl space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-600">Skip Notes</label>
+            <label className="text-xs font-medium text-slate-600">Skip Notes</label>
             <Textarea
               value={skipNotes}
               onChange={(event) => setSkipNotes(event.target.value)}
@@ -217,6 +297,85 @@ export function GradeApprovalDashboard() {
             emptyTitle="No pending submissions"
             emptyDescription="All submitted grades are processed."
           />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Grading Policies & Scale</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={selectedPolicyId}
+                  onChange={(event) => setSelectedPolicyId(event.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+                >
+                  <option value="">Select policy</option>
+                  {(policiesQuery.data || []).map((policy) => (
+                    <option key={policy.policy_id} value={policy.policy_id}>
+                      {policy.policy_name} {policy.is_locked ? '(locked)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <DataTable
+                columns={[
+                  { accessorKey: 'policy_id', header: 'Policy' },
+                  { accessorKey: 'policy_name', header: 'Name' },
+                  { accessorKey: 'is_locked', header: 'Locked' },
+                ]}
+                data={policiesQuery.data}
+                isLoading={policiesQuery.isLoading}
+                isFetching={policiesQuery.isFetching}
+                error={policiesQuery.error}
+                emptyTitle="No grading policies"
+                emptyDescription="Create policies via API or seed to manage scales."
+              />
+
+              {selectedPolicyId ? (
+                <DataTable
+                  columns={[
+                    { accessorKey: 'scale_item_id', header: 'ID' },
+                    { accessorKey: 'letter_grade', header: 'Grade' },
+                    { accessorKey: 'min_score', header: 'Min' },
+                    { accessorKey: 'max_score', header: 'Max' },
+                    { accessorKey: 'grade_points', header: 'Points' },
+                    { accessorKey: 'is_pass', header: 'Pass' },
+                  ]}
+                  data={scaleItemsQuery.data}
+                  isLoading={scaleItemsQuery.isLoading}
+                  isFetching={scaleItemsQuery.isFetching}
+                  error={scaleItemsQuery.error}
+                  emptyTitle="No scale items"
+                  emptyDescription="Add scale items to the selected policy."
+                />
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Assessment Tasks</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <DataTable
+                columns={[
+                  { accessorKey: 'task_id', header: 'Task' },
+                  { accessorKey: 'task_name', header: 'Name' },
+                  { accessorKey: 'task_type', header: 'Type' },
+                  { accessorKey: 'batch_id', header: 'Batch' },
+                  { accessorKey: 'module_id', header: 'Module' },
+                  { accessorKey: 'max_weight', header: 'Weight' },
+                ]}
+                data={tasksQuery.data}
+                isLoading={tasksQuery.isLoading}
+                isFetching={tasksQuery.isFetching}
+                error={tasksQuery.error}
+                emptyTitle="No tasks"
+                emptyDescription="Add module-level tasks to start grading."
+              />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

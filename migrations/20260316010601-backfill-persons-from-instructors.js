@@ -11,10 +11,22 @@ const splitFullName = (fullName) => {
   };
 };
 
+const hasColumn = async (queryInterface, tableName, columnName) => {
+  const desc = await queryInterface.describeTable(tableName);
+  return Boolean(desc[columnName]);
+};
+
 export default {
   async up(queryInterface, Sequelize) {
     const t = await queryInterface.sequelize.transaction();
     try {
+      // On a fresh install the instructors table has person_id from the start
+      // and no legacy full_name column — skip the instructor backfill.
+      if (!(await hasColumn(queryInterface, 'instructors', 'full_name'))) {
+        await t.commit();
+        return;
+      }
+
       const instructors = await queryInterface.sequelize.query(
         `SELECT instructor_id, full_name, deleted_at
          FROM instructors

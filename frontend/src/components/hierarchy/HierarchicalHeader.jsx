@@ -3,10 +3,10 @@ import { ChevronRight } from 'lucide-react';
 export function HierarchicalHeader({ items = [] }) {
   return (
     <div className="rounded-md border border-slate-200 bg-white px-3 py-2 shadow-panel">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-        Academic Context
+      <div className="mb-1 text-[11px] font-medium text-slate-500">
+        Academic context
       </div>
-      <div className="flex flex-wrap items-center gap-1 text-xs uppercase tracking-wide">
+      <div className="flex flex-wrap items-center gap-1 text-xs">
         {items.map((item, index) => {
           const isActive = index === items.length - 1;
 
@@ -17,8 +17,8 @@ export function HierarchicalHeader({ items = [] }) {
                 type="button"
                 onClick={() => item.onClick?.(item)}
                 className={[
-                  'relative text-primary transition-colors',
-                  isActive ? 'font-semibold' : 'hover:text-primary/80',
+                  'relative text-slate-600 transition-colors',
+                  isActive ? 'font-semibold text-primary' : 'hover:text-slate-900',
                 ].join(' ')}
               >
                 {item.label}

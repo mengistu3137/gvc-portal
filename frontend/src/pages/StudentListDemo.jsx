@@ -233,7 +233,16 @@ export function StudentListDemo() {
               ))}
             </select>
             <Input type="date" value={form.admission_date} onChange={(event) => onChange('admission_date', event.target.value)} />
-            <Input value={form.status} onChange={(event) => onChange('status', event.target.value)} placeholder="Status" />
+            <select
+              value={form.status}
+              onChange={(event) => onChange('status', event.target.value)}
+              className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+            >
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="SUSPENDED">SUSPENDED</option>
+              <option value="GRADUATED">GRADUATED</option>
+              <option value="DROPPED">DROPPED</option>
+            </select>
             <div className="md:col-span-3 flex gap-2">
               <Button type="submit" disabled={createStudent.isPending || updateStudent.isPending}>
                 {editingId ? 'Update Student' : 'Create Student'}

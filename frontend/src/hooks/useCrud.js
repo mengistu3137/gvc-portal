@@ -30,6 +30,8 @@ export function useCrud(entityName, config = {}) {
   const queryClient = useQueryClient();
   const entity = sanitizeEntity(entityName);
   const baseKey = [entity];
+  const mapList = config.mapList || toArray;
+  const mapOne = config.mapOne || toSingle;
   const getListPath = config.listPath || (() => `/${entity}`);
   const getOnePath = config.getOnePath || ((id) => `/${entity}/${id}`);
   const getCreatePath = config.createPath || (() => `/${entity}`);
@@ -43,7 +45,7 @@ export function useCrud(entityName, config = {}) {
       queryKey: [...baseKey, 'list', params],
       queryFn: async () => {
         const response = await api.get(getListPath(params), { params });
-        return toArray(response.payload);
+        return mapList(response.payload);
       },
       ...options,
     });
@@ -54,7 +56,7 @@ export function useCrud(entityName, config = {}) {
       enabled: Boolean(id) && (options.enabled ?? true),
       queryFn: async () => {
         const response = await api.get(getOnePath(id));
-        return toSingle(response.payload);
+        return mapOne(response.payload);
       },
       ...options,
     });

@@ -1,0 +1,19 @@
+'use strict';
+/**
+ * Sequelize CLI configuration.
+ *
+ * Points the CLI at the correct migrations directory and a lightweight
+ * CommonJS config that reads connection details from the .env file.
+ * Run migrations with:
+ *
+ *   npx sequelize-cli db:migrate
+ *   npx sequelize-cli db:migrate:undo
+ *   npx sequelize-cli db:migrate:undo:all
+ */
+
+const path = require('path');
+
+module.exports = {
+  'migrations-path': path.resolve(__dirname, 'migrations'),
+  'config': path.resolve(__dirname, 'config', 'sequelize-cli.cjs')
+};

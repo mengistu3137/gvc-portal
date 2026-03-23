@@ -180,7 +180,7 @@ class StudentService {
   }
 
   async getStudents(query) {
-    const { page = 1, limit = 10, search = '', status, occupation_id, level_id } = query;
+    const { page = 1, limit = 10, search = '', status, occupation_id, level_id, batch_id, sortBy = 'created_at', sortOrder = 'DESC' } = query;
     const offset = (page - 1) * limit;
 
     const whereClause = {
@@ -194,7 +194,8 @@ class StudentService {
         } : {},
         status ? { status } : {},
         occupation_id ? { occupation_id } : {},
-        level_id ? { level_id } : {}
+        level_id ? { level_id } : {},
+        batch_id ? { batch_id } : {}
       ]
     };
 
@@ -218,7 +219,7 @@ class StudentService {
       ],
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
-      order: [['created_at', 'DESC']],
+      order: [[sortBy, sortOrder]],
       distinct: true
     });
 

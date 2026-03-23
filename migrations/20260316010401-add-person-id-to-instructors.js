@@ -3,6 +3,15 @@ const hasColumn = async (queryInterface, tableName, columnName) => {
   return Boolean(table[columnName]);
 };
 
+const hasConstraint = async (queryInterface, tableName, constraintName) => {
+  const [results] = await queryInterface.sequelize.query(
+    `SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?`,
+    { replacements: [tableName, constraintName] }
+  );
+  return results.length > 0;
+};
+
 export default {
   async up(queryInterface, Sequelize) {
     const t = await queryInterface.sequelize.transaction();
@@ -35,32 +44,38 @@ export default {
         }, { transaction: t });
       }
 
-      await queryInterface.addConstraint('instructors', {
-        fields: ['person_id'],
-        type: 'foreign key',
-        name: 'fk_instructors_person_id',
-        references: { table: 'persons', field: 'person_id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT',
-        transaction: t
-      });
+      if (!(await hasConstraint(queryInterface, 'instructors', 'fk_instructors_person_id'))) {
+        await queryInterface.addConstraint('instructors', {
+          fields: ['person_id'],
+          type: 'foreign key',
+          name: 'fk_instructors_person_id',
+          references: { table: 'persons', field: 'person_id' },
+          onUpdate: 'CASCADE',
+          onDelete: 'RESTRICT',
+          transaction: t
+        });
+      }
 
-      await queryInterface.addConstraint('instructors', {
-        fields: ['person_id'],
-        type: 'unique',
-        name: 'uq_instructors_person_id',
-        transaction: t
-      });
+      if (!(await hasConstraint(queryInterface, 'instructors', 'uq_instructors_person_id'))) {
+        await queryInterface.addConstraint('instructors', {
+          fields: ['person_id'],
+          type: 'unique',
+          name: 'uq_instructors_person_id',
+          transaction: t
+        });
+      }
 
-      await queryInterface.addConstraint('instructors', {
-        fields: ['occupation_id'],
-        type: 'foreign key',
-        name: 'fk_instructors_occupation_id',
-        references: { table: 'occupations', field: 'occupation_id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
-        transaction: t
-      });
+      if (!(await hasConstraint(queryInterface, 'instructors', 'fk_instructors_occupation_id'))) {
+        await queryInterface.addConstraint('instructors', {
+          fields: ['occupation_id'],
+          type: 'foreign key',
+          name: 'fk_instructors_occupation_id',
+          references: { table: 'occupations', field: 'occupation_id' },
+          onUpdate: 'CASCADE',
+          onDelete: 'SET NULL',
+          transaction: t
+        });
+      }
 
       await t.commit();
     } catch (error) {
@@ -72,9 +87,15 @@ export default {
   async down(queryInterface) {
     const t = await queryInterface.sequelize.transaction();
     try {
-      await queryInterface.removeConstraint('instructors', 'fk_instructors_occupation_id', { transaction: t });
-      await queryInterface.removeConstraint('instructors', 'uq_instructors_person_id', { transaction: t });
-      await queryInterface.removeConstraint('instructors', 'fk_instructors_person_id', { transaction: t });
+      if (await hasConstraint(queryInterface, 'instructors', 'fk_instructors_occupation_id')) {
+        await queryInterface.removeConstraint('instructors', 'fk_instructors_occupation_id', { transaction: t });
+      }
+      if (await hasConstraint(queryInterface, 'instructors', 'uq_instructors_person_id')) {
+        await queryInterface.removeConstraint('instructors', 'uq_instructors_person_id', { transaction: t });
+      }
+      if (await hasConstraint(queryInterface, 'instructors', 'fk_instructors_person_id')) {
+        await queryInterface.removeConstraint('instructors', 'fk_instructors_person_id', { transaction: t });
+      }
 
       if (await hasColumn(queryInterface, 'instructors', 'qualification')) {
         await queryInterface.removeColumn('instructors', 'qualification', { transaction: t });
