@@ -1,22 +1,17 @@
-import { cn } from '../../lib/utils';
+import React from 'react';
 
-export function Card({ className, ...props }) {
+export const Card = ({ children, title, actions }) => {
   return (
-    <div
-      className={cn('rounded-lg border border-primary/15 bg-brand-surface shadow-panel', className)}
-      {...props}
-    />
+    <div className="bg-brand-surface rounded-xl shadow-panel overflow-hidden">
+      {(title || actions) && (
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+          {title && <h3 className="text-lg font-bold text-brand-ink">{title}</h3>}
+          {actions && <div className="flex gap-2">{actions}</div>}
+        </div>
+      )}
+      <div className="p-6">
+        {children}
+      </div>
+    </div>
   );
-}
-
-export function CardHeader({ className, ...props }) {
-  return <div className={cn('border-b border-primary/15 px-3 py-2.5', className)} {...props} />;
-}
-
-export function CardTitle({ className, ...props }) {
-  return <h3 className={cn('text-xs font-extrabold uppercase tracking-wide text-brand-ink', className)} {...props} />;
-}
-
-export function CardContent({ className, ...props }) {
-  return <div className={cn('p-3', className)} {...props} />;
-}
+};
