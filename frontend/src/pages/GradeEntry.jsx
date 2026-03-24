@@ -7,58 +7,103 @@ import { Alert } from '../components/ui/Alert';
 import { Skeleton } from '../components/ui/skeleton';
 import { useCrud } from '../hooks/useCrud';
 import { api } from '../lib/api';
-import { AssessmentBuilder } from '../components/academics/AssessmentBuilder';
 
 export function GradeEntry() {
   const studentsCrud = useCrud('students');
   const modulesCrud = useCrud('academics/modules');
   const batchesCrud = useCrud('academics/batches');
 
-  const [form, setForm] = useState({ student_pk: '', module_id: '', batch_id: '', assessment_scores: [], total_score: '' });
+  const [form, setForm] = useState({
+    student_pk: '',
+    module_id: null,
+    batch_id: '',
+    assessment_scores: [],
+  });
+
   const [moduleAssessments, setModuleAssessments] = useState([]);
+  console.log("module assse",moduleAssessments)
   const [errorMessage, setErrorMessage] = useState('');
+
+  /* ================= LIST QUERIES ================= */
 
   const studentsQuery = studentsCrud.list({ page: 1, limit: 300 });
   const modulesQuery = modulesCrud.list({ page: 1, limit: 300 });
   const batchesQuery = batchesCrud.list({ page: 1, limit: 300 });
 
-  const gradeMutation = useMutation({
-    mutationFn: async (payload) => api.post('/grading/grades', payload),
-  });
+  /* ================= MODULE DETAIL QUERY ================= */
 
   const moduleDetailQuery = useQuery({
-    queryKey: ['module', form.module_id],
-    enabled: Boolean(form.module_id),
+    queryKey: ['module-detail', form.module_id],
     queryFn: async () => {
-      const response = await api.get(`/academics/modules/${form.module_id}`);
-      return response.payload;
+      const res = await api.get(`/academics/modules/${form.module_id}`);
+      console.log("🔥 MODULE DETAIL RESPONSE:", res.data);
+      return res.data;   // VERY IMPORTANT (not payload)
     },
+    enabled: false,   // manual control (BEST PRACTICE)
   });
 
+  /* ===== Trigger fetch when module changes ===== */
+
   useEffect(() => {
-    if (moduleDetailQuery.data && Array.isArray(moduleDetailQuery.data.assessments)) {
+    if (form.module_id) {
+      console.log("✅ Fetching module detail for:", form.module_id);
+      moduleDetailQuery.refetch();
+    }
+  }, [form.module_id]);
+
+  /* ===== When module detail arrives ===== */
+
+  useEffect(() => {
+    if (
+      moduleDetailQuery.data &&
+      Array.isArray(moduleDetailQuery.data.assessments)
+    ) {
       setModuleAssessments(moduleDetailQuery.data.assessments);
-      setForm((current) => ({ ...current, assessment_scores: moduleDetailQuery.data.assessments.map((item) => ({ name: item.name, score: '' })) }));
+
+      setForm((current) => ({
+        ...current,
+        assessment_scores:
+          moduleDetailQuery.data.assessments.map((a) => ({
+            name: a.name,
+            score: '',
+          })),
+      }));
     } else {
       setModuleAssessments([]);
-      setForm((current) => ({ ...current, assessment_scores: [] }));
+      setForm((current) => ({
+        ...current,
+        assessment_scores: [],
+      }));
     }
   }, [moduleDetailQuery.data]);
 
+  /* ================= TOTAL SCORE ================= */
+
   const totalScore = useMemo(() => {
-    if (!Array.isArray(form.assessment_scores)) return 0;
-    return form.assessment_scores.reduce((sum, item) => sum + Number(item.score || 0), 0);
+    return form.assessment_scores.reduce(
+      (sum, item) => sum + Number(item.score || 0),
+      0
+    );
   }, [form.assessment_scores]);
 
   const onAssessmentScore = (index, value) => {
     setForm((current) => ({
       ...current,
-      assessment_scores: current.assessment_scores.map((item, idx) => (idx === index ? { ...item, score: value } : item)),
+      assessment_scores: current.assessment_scores.map((item, idx) =>
+        idx === index ? { ...item, score: value } : item
+      ),
     }));
   };
 
-  const submitGrade = async (event) => {
-    event.preventDefault();
+  /* ================= SAVE GRADE ================= */
+
+  const gradeMutation = useMutation({
+    mutationFn: async (payload) =>
+      api.post('/grading/grades', payload),
+  });
+
+  const submitGrade = async (e) => {
+    e.preventDefault();
     setErrorMessage('');
 
     if (!form.student_pk || !form.module_id || !form.batch_id) {
@@ -71,18 +116,34 @@ export function GradeEntry() {
         student_pk: Number(form.student_pk),
         module_id: Number(form.module_id),
         batch_id: Number(form.batch_id),
-        assessment_scores: form.assessment_scores.map((item) => ({ ...item, score: Number(item.score || 0) })),
+        assessment_scores: form.assessment_scores.map((a) => ({
+          ...a,
+          score: Number(a.score || 0),
+        })),
         total_score: totalScore,
         final_score: totalScore,
       });
-      setForm({ student_pk: '', module_id: '', batch_id: '', assessment_scores: [], total_score: '' });
+
+      /* RESET */
+      setForm({
+        student_pk: '',
+        module_id: null,
+        batch_id: '',
+        assessment_scores: [],
+      });
       setModuleAssessments([]);
-    } catch (error) {
-      setErrorMessage(error.message || 'Unable to save grade');
+
+    } catch (err) {
+      setErrorMessage(err.message || 'Unable to save grade');
     }
   };
 
-  const isLoading = studentsQuery.isLoading || modulesQuery.isLoading || batchesQuery.isLoading;
+  const isLoading =
+    studentsQuery.isLoading ||
+    modulesQuery.isLoading ||
+    batchesQuery.isLoading;
+
+  /* ================= UI ================= */
 
   return (
     <div className="space-y-4">
@@ -90,96 +151,142 @@ export function GradeEntry() {
         <CardHeader>
           <CardTitle>Grade Entry</CardTitle>
         </CardHeader>
+
         <CardContent className="space-y-4">
-          {errorMessage ? <Alert tone="danger" title="Save failed">{errorMessage}</Alert> : null}
-          {isLoading ? (
+
+          {errorMessage && (
+            <Alert tone="danger" title="Save failed">
+              {errorMessage}
+            </Alert>
+          )}
+
+          {moduleDetailQuery.isError && (
+            <Alert tone="danger" title="Module fetch failed">
+              {moduleDetailQuery.error?.message}
+            </Alert>
+          )}
+
+          {isLoading && (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : null}
+          )}
 
           <form className="space-y-3" onSubmit={submitGrade}>
             <div className="grid gap-3 md:grid-cols-3">
+
+              {/* STUDENT */}
               <select
                 value={form.student_pk}
-                onChange={(event) => setForm((current) => ({ ...current, student_pk: event.target.value }))}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                onChange={(e) =>
+                  setForm((c) => ({ ...c, student_pk: e.target.value }))
+                }
+                className="rounded-md border px-3 py-2 text-sm"
                 required
               >
                 <option value="">Select student</option>
-                {(studentsQuery.data || []).map((student) => (
-                  <option key={student.student_pk} value={student.student_pk}>
-                    {student.student_id} — {student.full_name}
+                {(studentsQuery.data || []).map((s) => (
+                  <option key={s.student_pk} value={s.student_pk}>
+                    {s.student_id} — {s.full_name}
                   </option>
                 ))}
               </select>
 
+              {/* MODULE */}
               <select
-                value={form.module_id}
-                onChange={(event) => setForm((current) => ({ ...current, module_id: event.target.value }))}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                value={form.module_id || ''}
+                onChange={(e) =>
+                  setForm((c) => ({
+                    ...c,
+                    module_id: Number(e.target.value),   // ⭐ FIX
+                  }))
+                }
+                className="rounded-md border px-3 py-2 text-sm"
                 required
               >
                 <option value="">Select module</option>
-                {(modulesQuery.data?.rows || modulesQuery.data || []).map((module) => (
-                  <option key={module.module_id} value={module.module_id}>
-                    {module.m_code} — {module.unit_competency}
+                {(modulesQuery.data?.rows || modulesQuery.data || []).map((m) => (
+                  <option key={m.module_id} value={m.module_id}>
+                    {m.m_code} — {m.unit_competency}
                   </option>
                 ))}
               </select>
 
+              {/* BATCH */}
               <select
                 value={form.batch_id}
-                onChange={(event) => setForm((current) => ({ ...current, batch_id: event.target.value }))}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                onChange={(e) =>
+                  setForm((c) => ({ ...c, batch_id: e.target.value }))
+                }
+                className="rounded-md border px-3 py-2 text-sm"
                 required
               >
                 <option value="">Select batch</option>
-                {(batchesQuery.data || []).map((batch) => (
-                  <option key={batch.batch_id} value={batch.batch_id}>
-                    {batch.batch_code}
+                {(batchesQuery.data || []).map((b) => (
+                  <option key={b.batch_id} value={b.batch_id}>
+                    {b.batch_code}
                   </option>
                 ))}
               </select>
+
             </div>
 
+            {/* ASSESSMENTS */}
             {moduleAssessments.length > 0 ? (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Assessment scores</p>
-                {form.assessment_scores.map((item, index) => (
-                  <div key={`score-${index}`} className="flex items-center gap-2">
-                    <div className="flex-1 text-sm text-slate-700">{item.name}</div>
+              <div className="border rounded-lg p-3 space-y-2">
+                <p className="text-xs font-semibold uppercase">
+                  Assessment Scores
+                </p>
+
+                {form.assessment_scores.map((item, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <div className="flex-1">{item.name}</div>
                     <Input
                       type="number"
-                      min="0"
-                      max="100"
-                      value={item.score ?? ''}
-                      onChange={(event) => onAssessmentScore(index, event.target.value)}
+                      value={item.score}
+                      onChange={(e) =>
+                        onAssessmentScore(i, e.target.value)
+                      }
                       className="w-28"
                     />
                   </div>
                 ))}
-                <div className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm">
-                  <span className="text-slate-600">Total score</span>
-                  <span className="font-semibold text-primary">{totalScore}</span>
+
+                <div className="flex justify-between bg-white px-3 py-2 rounded">
+                  <span>Total Score</span>
+                  <span className="font-bold">{totalScore}</span>
                 </div>
               </div>
             ) : (
               <Alert tone="info" title="No assessments">
-                Select a module with assessments to enter detailed scores. You can still submit a total score.
+                Select module to load assessments
               </Alert>
             )}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={gradeMutation.isPending}>
-                {gradeMutation.isPending ? 'Saving...' : 'Submit grade'}
+            <div className="flex gap-2">
+              <Button type="submit">
+                {gradeMutation.isPending ? 'Saving...' : 'Submit Grade'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => { setForm({ student_pk: '', module_id: '', batch_id: '', assessment_scores: [], total_score: '' }); setModuleAssessments([]); }}>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setForm({
+                    student_pk: '',
+                    module_id: null,
+                    batch_id: '',
+                    assessment_scores: [],
+                  });
+                  setModuleAssessments([]);
+                }}
+              >
                 Reset
               </Button>
             </div>
+
           </form>
         </CardContent>
       </Card>

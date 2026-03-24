@@ -47,15 +47,13 @@ export function AppLayout({ children }) {
   return (
     <div className="min-h-screen bg-brand-background">
       <aside className="fixed inset-y-0 left-0 z-30 w-20 border-r border-brand-blue/40 bg-brand-blue text-white md:w-64">
-        <div className="flex h-14 items-center gap-3 border-b border-white/15 px-4 md:px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-sm font-bold tracking-widest text-white">
-            GVC
-          </span>
-          <div className="hidden md:block leading-tight">
-            <p className="text-sm font-semibold">Grand Valley</p>
-            <p className="text-[11px] text-white/75">College Portal</p>
-          </div>
-        </div>
+       <div className="flex items-center gap-2">
+  <img src="/image.png" className="h-8 w-8" />
+  <div className="leading-tight">
+    <p className="text-sm font-semibold">Grand Valley</p>
+    <p className="text-[11px] text-white/75">College Portal</p>
+  </div>
+</div>
         <nav className="mt-4 flex flex-col gap-1 px-2 md:px-4">
           {navItems.map((item) => (
             <NavLink

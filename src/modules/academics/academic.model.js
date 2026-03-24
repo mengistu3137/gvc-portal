@@ -54,7 +54,16 @@ Module.init({
   },
   learning_hours: { type: DataTypes.INTEGER, defaultValue: 0 },
   credit_units: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
-  assessments: { type: DataTypes.JSON, allowNull: true }
+assessments: {
+  type: DataTypes.JSON,
+  allowNull: true,
+  defaultValue: [],
+  get() {
+    const raw = this.getDataValue('assessments');
+    if (typeof raw === 'string') return JSON.parse(raw);
+    return raw;
+  }
+}
 }, { 
   sequelize,
   modelName: 'module',

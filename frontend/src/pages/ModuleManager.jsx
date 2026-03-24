@@ -56,7 +56,7 @@ export function ModuleManager() {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-
+console.log("form", form)
     const nextErrors = {
       m_code: form.m_code.trim() ? '' : 'Module code is required',
       unit_competency: form.unit_competency.trim() ? '' : 'Unit competency is required',
