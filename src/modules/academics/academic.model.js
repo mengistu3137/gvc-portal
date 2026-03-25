@@ -54,16 +54,7 @@ Module.init({
   },
   learning_hours: { type: DataTypes.INTEGER, defaultValue: 0 },
   credit_units: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
-assessments: {
-  type: DataTypes.JSON,
-  allowNull: true,
-  defaultValue: [],
-  get() {
-    const raw = this.getDataValue('assessments');
-    if (typeof raw === 'string') return JSON.parse(raw);
-    return raw;
-  }
-}
+
 }, { 
   sequelize,
   modelName: 'module',
@@ -71,18 +62,7 @@ assessments: {
   paranoid: true,
   underscored: true,
   indexes: [{ unique: true, fields: ['m_code'] }],
-  hooks: {
-    // Keep parity with DB trigger: ensure assessment weights sum to 100 when provided
-    beforeValidate: (module) => {
-      const items = module.assessments;
-      if (Array.isArray(items) && items.length) {
-        const total = items.reduce((acc, cur) => acc + Number(cur?.max_weight || 0), 0);
-        if (Number.isFinite(total) && Math.abs(total - 100) > 1e-6) {
-          throw new Error(`Assessment weights must sum to 100. Current total: ${total}`);
-        }
-      }
-    }
-  }
+ 
 });
 
 // 6. ACADEMIC YEAR
@@ -121,8 +101,9 @@ Batch.init({
       const occ = await Occupation.findByPk(batch.occupation_id);
       const year = await AcademicYear.findByPk(batch.academic_year_id);
       if (occ && year) {
-        // Generates: NUR-2015-L4
-        batch.batch_code = `${occ.occupation_code}-${year.academic_year_label}-L${batch.level_id}`;
+        // Generates: NUR-2015-L4-R
+
+        batch.batch_code = `${occ.occupation_code}-${year.academic_year_label}-L${batch.level_id}-${batch.track_type === 'EXTENSION' ? 'E' : 'R'}`;
       }
     }
   }

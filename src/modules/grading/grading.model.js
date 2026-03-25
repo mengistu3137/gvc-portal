@@ -1,142 +1,282 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database.js';
-import { Batch, Module } from '../academics/academic.model.js';
 import { Student } from '../students/student.model.js';
+import { Batch } from '../academics/academic.model.js';
 import { Instructor } from '../instructors/instructor.model.js';
+import { ModuleOffering } from '../enrollment/enrollment.model.js';
 
-// Grading policy stores grade scale JSON directly
-export class GradingPolicy extends Model {}
-GradingPolicy.init({
-  policy_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-  policy_name: { type: DataTypes.STRING(120), allowNull: false, unique: true },
-  is_locked: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-  grade_scale: { type: DataTypes.JSON, allowNull: false }
+// ----------------------
+// ASSESSMENT
+// ----------------------
+export class Assessment extends Model {}
+
+Assessment.init({
+  assessment_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  offering_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'module_offerings', key: 'offering_id' }
+  },
+
+  name: { type: DataTypes.STRING, allowNull: false },
+  weight: { type: DataTypes.DECIMAL(5, 2), allowNull: false }
+
 }, {
   sequelize,
-  modelName: 'grading_policy',
-  tableName: 'grading_policies',
-  timestamps: true,
+  tableName: 'assessments',
   underscored: true
 });
 
-export class StudentGrade extends Model {}
-StudentGrade.init({
-  grade_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-  student_pk: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  module_id: { type: DataTypes.INTEGER, allowNull: false },
-  batch_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  assessment_scores: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
-  total_score: { type: DataTypes.DECIMAL(6, 2) },
-  final_score: { type: DataTypes.DECIMAL(6, 2) },
-  letter_grade: { type: DataTypes.STRING(8) },
-  grade_points: { type: DataTypes.DECIMAL(3, 2) },
-  status: { type: DataTypes.ENUM('PASSED', 'FAILED', 'PENDING'), defaultValue: 'PENDING' },
-  submitted_by: { type: DataTypes.BIGINT.UNSIGNED },
-  submitted_at: { type: DataTypes.DATE },
-  approved_by: { type: DataTypes.BIGINT.UNSIGNED },
-  approved_at: { type: DataTypes.DATE }
+// ----------------------
+// STUDENT ASSESSMENT SCORE
+// ----------------------
+export class StudentAssessmentScore extends Model {}
+
+StudentAssessmentScore.init({
+  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  student_pk: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'students', key: 'student_pk' }
+  },
+
+  assessment_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'assessments', key: 'assessment_id' }
+  },
+
+  score: {
+    type: DataTypes.DECIMAL(6, 2),
+    allowNull: false
+  }
+
 }, {
   sequelize,
-  modelName: 'student_grade',
-  tableName: 'student_grades',
-  timestamps: true,
+  tableName: 'student_assessment_scores',
   underscored: true,
   indexes: [
-    { unique: true, fields: ['student_pk', 'module_id', 'batch_id'] },
-    { fields: ['final_score'] },
-    { fields: ['status'] }
+    { unique: true, fields: ['student_pk', 'assessment_id'] }
   ]
 });
 
+// ----------------------
+// STUDENT RESULT
+// ----------------------
+export class StudentResult extends Model {}
+
+StudentResult.init({
+  result_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  student_pk: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'students', key: 'student_pk' }
+  },
+
+  offering_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'module_offerings', key: 'offering_id' }
+  },
+
+  attempt_no: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+
+  total_score: { type: DataTypes.DECIMAL(6, 2), allowNull: false },
+  letter_grade: { type: DataTypes.STRING(5), allowNull: false },
+  grade_point: { type: DataTypes.DECIMAL(3, 2), allowNull: false },
+
+  status: {
+    type: DataTypes.ENUM('PASSED', 'FAILED'),
+    allowNull: false
+  }
+
+}, {
+  sequelize,
+  tableName: 'student_results',
+  underscored: true,
+  indexes: [
+    { unique: true, fields: ['student_pk', 'offering_id', 'attempt_no'] }
+  ]
+});
+
+// ----------------------
+// GRADE SCALE
+// ----------------------
+export class GradeScale extends Model {}
+
+GradeScale.init({
+  scale_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  min_score: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
+  max_score: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
+
+  letter: { type: DataTypes.STRING(5), allowNull: false },
+  grade_point: { type: DataTypes.DECIMAL(3, 2), allowNull: false }
+
+}, {
+  sequelize,
+  tableName: 'grade_scales',
+  underscored: true
+});
+
+// ----------------------
+// GRADE SUBMISSION
+// ----------------------
 export class GradeSubmission extends Model {}
+
 GradeSubmission.init({
   submission_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-  batch_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  module_id: { type: DataTypes.INTEGER, allowNull: false },
-  instructor_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  status: {
-    type: DataTypes.ENUM('DRAFT', 'SUBMITTED', 'REJECTED', 'HOD_APPROVED', 'QA_APPROVED', 'TVET_APPROVED', 'FINALIZED'),
+
+  offering_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
+    references: { model: 'module_offerings', key: 'offering_id' }
+  },
+
+  instructor_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'instructors', key: 'instructor_id' }
+  },
+
+  status: {
+    type: DataTypes.ENUM('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'),
     defaultValue: 'DRAFT'
-  },
-  submission_data: { type: DataTypes.JSON },
-  note: { type: DataTypes.TEXT },
-  review_comments: { type: DataTypes.JSON },
-  submitted_at: { type: DataTypes.DATE },
-  hod_approved_at: { type: DataTypes.DATE },
-  qa_approved_at: { type: DataTypes.DATE },
-  tvet_approved_at: { type: DataTypes.DATE },
-  finalized_at: { type: DataTypes.DATE }
+  }
+
 }, {
   sequelize,
-  modelName: 'grade_submission',
   tableName: 'grade_submissions',
-  timestamps: true,
-  underscored: true,
-  indexes: [
-    { unique: true, fields: ['batch_id', 'module_id'] },
-    { fields: ['status'] }
-  ]
+  underscored: true
 });
 
-export class ModuleEnrollment extends Model {}
-ModuleEnrollment.init({
-  enrollment_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-  student_pk: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  module_id: { type: DataTypes.INTEGER, allowNull: false },
-  batch_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  final_score: { type: DataTypes.DECIMAL(6, 2) },
-  letter_grade: { type: DataTypes.STRING(8) },
-  grade_points: { type: DataTypes.DECIMAL(3, 2) },
-  credits_earned: { type: DataTypes.DECIMAL(5, 2) },
-  status: {
-    type: DataTypes.ENUM('PASSED', 'FAILED', 'IN_PROGRESS'),
+// ----------------------
+// SUBMISSION ITEM
+// ----------------------
+export class SubmissionItem extends Model {}
+
+SubmissionItem.init({
+  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  submission_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
-    defaultValue: 'IN_PROGRESS'
+    references: { model: 'grade_submissions', key: 'submission_id' }
   },
-  completed_at: { type: DataTypes.DATE }
+
+  result_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'student_results', key: 'result_id' }
+  }
+
 }, {
   sequelize,
-  modelName: 'module_enrollment',
-  tableName: 'module_enrollments',
-  timestamps: true,
+  tableName: 'submission_items',
+  underscored: true
+});
+
+// ----------------------
+// APPROVAL
+// ----------------------
+export class Approval extends Model {}
+
+Approval.init({
+  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  submission_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'grade_submissions', key: 'submission_id' }
+  },
+
+  role: { type: DataTypes.STRING, allowNull: false },
+
+  status: {
+    type: DataTypes.ENUM('PENDING', 'APPROVED', 'REJECTED'),
+    defaultValue: 'PENDING'
+  },
+
+  approved_by: DataTypes.BIGINT.UNSIGNED,
+  approved_at: DataTypes.DATE
+
+}, {
+  sequelize,
+  tableName: 'approvals',
+  underscored: true
+});
+
+// ----------------------
+// GPA RECORD
+// ----------------------
+export class StudentGpaRecord extends Model {}
+
+StudentGpaRecord.init({
+  gpa_record_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+
+  student_pk: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'students', key: 'student_pk' }
+  },
+
+  batch_id: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'batches', key: 'batch_id' }
+  },
+
+  semester: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
+
+  semester_gpa: { type: DataTypes.DECIMAL(4, 2), allowNull: false },
+  cumulative_gpa: { type: DataTypes.DECIMAL(4, 2), allowNull: false }
+
+}, {
+  sequelize,
+  tableName: 'student_gpa_records',
   underscored: true,
   indexes: [
-    { unique: true, fields: ['student_pk', 'module_id', 'batch_id'] },
-    { fields: ['status'] },
-    { fields: ['letter_grade'] }
+    { unique: true, fields: ['student_pk', 'batch_id', 'semester'] }
   ]
 });
 
-// --- Associations ---
-Student.hasMany(StudentGrade, { foreignKey: 'student_pk', as: 'grades' });
-StudentGrade.belongsTo(Student, { foreignKey: 'student_pk', as: 'student' });
+// ----------------------
+// ASSOCIATIONS
+// ----------------------
 
-Module.hasMany(StudentGrade, { foreignKey: 'module_id', as: 'student_grades' });
-StudentGrade.belongsTo(Module, { foreignKey: 'module_id', as: 'module' });
+ModuleOffering.hasMany(Assessment, { foreignKey: 'offering_id', as: 'assessments' });
+Assessment.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
 
-Batch.hasMany(StudentGrade, { foreignKey: 'batch_id', as: 'student_grades' });
-StudentGrade.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
+Assessment.hasMany(StudentAssessmentScore, { foreignKey: 'assessment_id' });
+StudentAssessmentScore.belongsTo(Assessment, { foreignKey: 'assessment_id' });
 
-Instructor.hasMany(StudentGrade, { foreignKey: 'submitted_by', as: 'submitted_grades' });
-StudentGrade.belongsTo(Instructor, { foreignKey: 'submitted_by', as: 'submittedBy' });
-Instructor.hasMany(StudentGrade, { foreignKey: 'approved_by', as: 'approved_grades' });
-StudentGrade.belongsTo(Instructor, { foreignKey: 'approved_by', as: 'approvedBy' });
+Student.hasMany(StudentAssessmentScore, { foreignKey: 'student_pk' });
+StudentAssessmentScore.belongsTo(Student, { foreignKey: 'student_pk' });
 
-Batch.hasMany(GradeSubmission, { foreignKey: 'batch_id', as: 'grade_submissions' });
-GradeSubmission.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
+Student.hasMany(StudentResult, { foreignKey: 'student_pk' });
+StudentResult.belongsTo(Student, { foreignKey: 'student_pk' });
 
-Module.hasMany(GradeSubmission, { foreignKey: 'module_id', as: 'grade_submissions' });
-GradeSubmission.belongsTo(Module, { foreignKey: 'module_id', as: 'module' });
+ModuleOffering.hasMany(StudentResult, { foreignKey: 'offering_id' });
+StudentResult.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
 
-Instructor.hasMany(GradeSubmission, { foreignKey: 'instructor_id', as: 'grade_submissions' });
-GradeSubmission.belongsTo(Instructor, { foreignKey: 'instructor_id', as: 'instructor' });
+GradeSubmission.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
+GradeSubmission.belongsTo(Instructor, { foreignKey: 'instructor_id' });
 
-Student.hasMany(ModuleEnrollment, { foreignKey: 'student_pk', as: 'module_enrollments' });
-ModuleEnrollment.belongsTo(Student, { foreignKey: 'student_pk', as: 'student' });
+ModuleOffering.hasMany(GradeSubmission, { foreignKey: 'offering_id' });
 
-Module.hasMany(ModuleEnrollment, { foreignKey: 'module_id', as: 'module_enrollments' });
-ModuleEnrollment.belongsTo(Module, { foreignKey: 'module_id', as: 'module' });
+SubmissionItem.belongsTo(GradeSubmission, { foreignKey: 'submission_id' });
+SubmissionItem.belongsTo(StudentResult, { foreignKey: 'result_id' });
 
-Batch.hasMany(ModuleEnrollment, { foreignKey: 'batch_id', as: 'module_enrollments' });
-ModuleEnrollment.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
+GradeSubmission.hasMany(SubmissionItem, { foreignKey: 'submission_id' });
+
+Approval.belongsTo(GradeSubmission, { foreignKey: 'submission_id' });
+GradeSubmission.hasMany(Approval, { foreignKey: 'submission_id' });
+
+Student.hasMany(StudentGpaRecord, { foreignKey: 'student_pk' });
+Batch.hasMany(StudentGpaRecord, { foreignKey: 'batch_id' });
+
+StudentGpaRecord.belongsTo(Student, { foreignKey: 'student_pk' });
+StudentGpaRecord.belongsTo(Batch, { foreignKey: 'batch_id' });
