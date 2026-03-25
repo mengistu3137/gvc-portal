@@ -7,11 +7,8 @@ import {
 	upsertStudentGradesBulk,
 	importStudentGradesBulk,
 	changeSubmissionStatus,
-	createPolicy,
-	listPolicies,
-	getPolicy,
-	updatePolicy,
-	calculateFinalGrade
+	calculateFinalGrade,
+	listAssessments
 } from './grading.controller.js';
 import { authenticate, authorize } from '../../middlewares/authGuard.js';
 import { spreadsheetUpload } from '../../middlewares/upload.js';
@@ -29,11 +26,7 @@ router.post('/grades/import', auth('manage_grading'), spreadsheetUpload.single('
 
 router.put('/submissions/:id/status', authenticate, changeSubmissionStatus);
 
-router.post('/policies', auth('manage_grading_policy'), createPolicy);
-router.get('/policies', auth('manage_grading_policy'), listPolicies);
-router.get('/policies/:id', auth('manage_grading_policy'), getPolicy);
-router.put('/policies/:id', auth('manage_grading_policy'), updatePolicy);
-
-router.get('/calculate/:studentId/:moduleId/:batchId', authenticate, calculateFinalGrade);
+router.get('/calculate/:studentId/:offeringId', authenticate, calculateFinalGrade);
+router.get('/assessments/:offeringId', auth('manage_grading'), listAssessments);
 
 export default router;

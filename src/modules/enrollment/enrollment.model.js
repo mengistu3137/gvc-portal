@@ -67,8 +67,8 @@ Enrollment.init({
   },
 
   status: {
-    type: DataTypes.ENUM('ENROLLED', 'DROPPED'),
-    defaultValue: 'ENROLLED'
+    type: DataTypes.ENUM('ENROLLED', 'DROPPED', 'WITHDRAWN', 'COMPLETED',"REQUESTED",'FAILED'),
+    defaultValue: 'REQUESTED'
   }
 
 }, {
@@ -89,13 +89,13 @@ Module.hasMany(ModuleOffering, { foreignKey: 'module_id', as: 'offerings' });
 Batch.hasMany(ModuleOffering, { foreignKey: 'batch_id', as: 'offerings' });
 Instructor.hasMany(ModuleOffering, { foreignKey: 'instructor_id', as: 'offerings' });
 
-ModuleOffering.belongsTo(Module, { foreignKey: 'module_id' });
-ModuleOffering.belongsTo(Batch, { foreignKey: 'batch_id' });
-ModuleOffering.belongsTo(Instructor, { foreignKey: 'instructor_id' });
+ModuleOffering.belongsTo(Module, { foreignKey: 'module_id', as: 'module' });
+ModuleOffering.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
+ModuleOffering.belongsTo(Instructor, { foreignKey: 'instructor_id', as: 'instructor' });
 
 // Enrollment
 Student.hasMany(Enrollment, { foreignKey: 'student_pk', as: 'enrollments' });
 ModuleOffering.hasMany(Enrollment, { foreignKey: 'offering_id', as: 'enrollments' });
 
-Enrollment.belongsTo(Student, { foreignKey: 'student_pk' });
-Enrollment.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
+Enrollment.belongsTo(Student, { foreignKey: 'student_pk', as: 'student' });
+Enrollment.belongsTo(ModuleOffering, { foreignKey: 'offering_id', as: 'offering' });

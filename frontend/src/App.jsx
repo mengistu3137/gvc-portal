@@ -4,7 +4,6 @@ import { AppLayout } from './components/layout/AppLayout';
 import { AcademicExplorer } from './pages/AcademicExplorer';
 import { EnrollmentManager } from './pages/EnrollmentManager';
 import { GradeApprovalDashboard } from './pages/GradeApprovalDashboard';
-import { GradingPolicyManager } from './pages/GradingPolicyManager';
 import { GradeEntry } from './pages/GradeEntry';
 import { InstructorManager } from './pages/InstructorManager';
 import { LoginPage } from './pages/LoginPage';
@@ -25,7 +24,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<SectorOccupationManager />} />
                 <Route path="/grading" element={<GradeApprovalDashboard />} />
-                <Route path="/grading-policies" element={<GradingPolicyManager />} />
                 <Route path="/grade-entry" element={<GradeEntry />} />
                 <Route path="/modules" element={<ModuleManager />} />
                 <Route path="/students" element={<StudentListDemo />} />

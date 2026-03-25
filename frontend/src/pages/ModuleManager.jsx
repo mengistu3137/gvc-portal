@@ -67,11 +67,11 @@ console.log("form", form)
       return;
     }
 
-    if (totalWeight !== 100) {
+  /*   if (totalWeight !== 100) {
       setFormError('Assessment weights must add to 100%.');
       setActiveTab('assessments');
       return;
-    }
+    } */
 
     const payload = {
       ...form,

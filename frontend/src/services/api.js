@@ -38,4 +38,27 @@ apiClient.interceptors.response.use(
   }
 );
 
-export default apiClient;
+export default apiClient;TOKEN=<jwt>
+BASE=http://localhost:3000/api
+
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"student_pk":1,"offering_id":1,"level_id":1,"status":"ENROLLED"}' \
+  $BASE/enrollment
+
+curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"status":"DROPPED"}' \
+  $BASE/enrollment/1
+
+curl -X DELETE -H "Authorization: Bearer $TOKEN" $BASE/enrollment/1
+
+curl -H "Authorization: Bearer $TOKEN" $BASE/enrollment?student_pk=1
+
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"student_pk":1,"offering_id":1,"assessment_scores":[{"name":"Overall","weight":100,"score":78}],"total_score":78,"final_score":78}' \
+  $BASE/grading/grades
+
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"rows":[{"student_pk":1,"offering_id":1,"assessment_scores":[{"name":"Overall","weight":100,"score":85}]}]}' \
+  $BASE/grading/grades/bulk
+
+curl -H "Authorization: Bearer $TOKEN" $BASE/enrollment/gpa/1/1

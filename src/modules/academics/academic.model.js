@@ -81,13 +81,8 @@ Batch.init({
   occupation_id: { type: DataTypes.INTEGER, allowNull: false },
   academic_year_id: { type: DataTypes.INTEGER, allowNull: false },
   level_id: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
-  grading_policy_id: {
-    type: DataTypes.BIGINT.UNSIGNED,
-    allowNull: true,
-    references: { model: 'grading_policies', key: 'policy_id' }
-  },
   batch_code: { type: DataTypes.STRING(40), unique: true },
-  track_type: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
+  division: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
   capacity: { type: DataTypes.INTEGER, defaultValue: 0 },
   metadata: { type: DataTypes.JSON, allowNull: true }
 }, { 
@@ -103,7 +98,7 @@ Batch.init({
       if (occ && year) {
         // Generates: NUR-2015-L4-R
 
-        batch.batch_code = `${occ.occupation_code}-${year.academic_year_label}-L${batch.level_id}-${batch.track_type === 'EXTENSION' ? 'E' : 'R'}`;
+        batch.batch_code = `${occ.occupation_code}-${year.academic_year_label}-L${batch.level_id}-${batch.division === 'EXTENSION' ? 'E' : 'R'}`;
       }
     }
   }
@@ -133,11 +128,6 @@ LevelModule.init({
     allowNull: false
   },
 
-  semester: {
-    type: DataTypes.TINYINT.UNSIGNED,
-    defaultValue: 1
-  },
-
   is_elective: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
@@ -151,7 +141,7 @@ LevelModule.init({
   timestamps: false,
   underscored: true,
   indexes: [
-    { fields: ['level_id', 'occupation_id', 'semester'] }
+    { fields: ['level_id', 'occupation_id', 'm_code'], unique: true }
   ]
 });
 
@@ -182,7 +172,7 @@ AcademicYear.hasMany(Batch, { foreignKey: 'academic_year_id' });
 Batch.belongsTo(AcademicYear, { foreignKey: 'academic_year_id', as: 'academic_year' });
 
 // --- CURRICULUM (LEVEL MODULE) RELATIONSHIPS ---
-// Since LevelModule has extra fields (occupation_id, semester), 
+// Since LevelModule has extra fields (occupation_id), 
 // we treat it as a standard entity, not just a hidden 'through' table.
 
 // LevelModule links to Module

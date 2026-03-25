@@ -164,39 +164,17 @@ export default {
         end_date: { type: Sequelize.DATEONLY, allowNull: false }
       }, { transaction: t });
 
-      // grading_policies
-      await queryInterface.createTable('grading_policies', {
-        policy_id: { type: Sequelize.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-        policy_name: { type: Sequelize.STRING(120), allowNull: false, unique: true },
-        is_locked: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
-        created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
-        updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') },
-        deleted_at: { type: Sequelize.DATE }
-      }, { transaction: t });
-
-      // grade_scale_items
-      await queryInterface.createTable('grade_scale_items', {
-        scale_item_id: { type: Sequelize.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-        policy_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
-        letter_grade: { type: Sequelize.STRING(8), allowNull: false },
-        min_score: { type: Sequelize.DECIMAL(6, 2), allowNull: false },
-        max_score: { type: Sequelize.DECIMAL(6, 2), allowNull: false },
-        grade_points: { type: Sequelize.DECIMAL(3, 2), allowNull: false, defaultValue: 0 },
+      // grade_scales
+      await queryInterface.createTable('grade_scales', {
+        scale_id: { type: Sequelize.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+        min_score: { type: Sequelize.DECIMAL(5, 2), allowNull: false },
+        max_score: { type: Sequelize.DECIMAL(5, 2), allowNull: false },
+        letter: { type: Sequelize.STRING(5), allowNull: false },
+        grade_point: { type: Sequelize.DECIMAL(3, 2), allowNull: false },
         is_pass: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
         created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
-        updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') },
-        deleted_at: { type: Sequelize.DATE }
+        updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') }
       }, { transaction: t });
-
-      await queryInterface.addConstraint('grade_scale_items', {
-        fields: ['policy_id'],
-        type: 'foreign key',
-        name: 'fk_grade_scale_items_policy_id',
-        references: { table: 'grading_policies', field: 'policy_id' },
-        onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-        transaction: t
-      });
 
       // batches
       await queryInterface.createTable('batches', {
@@ -204,9 +182,8 @@ export default {
         occupation_id: { type: Sequelize.INTEGER, allowNull: false },
         academic_year_id: { type: Sequelize.INTEGER, allowNull: false },
         level_id: { type: Sequelize.TINYINT.UNSIGNED, allowNull: false },
-        grading_policy_id: { type: Sequelize.BIGINT.UNSIGNED },
         batch_code: { type: Sequelize.STRING(40), unique: true },
-        track_type: { type: Sequelize.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
+        division: { type: Sequelize.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
         capacity: { type: Sequelize.INTEGER, defaultValue: 0 },
         created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
         updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP') },
@@ -239,16 +216,6 @@ export default {
         name: 'fk_batches_level_id',
         references: { table: 'levels', field: 'level_id' },
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-        transaction: t
-      });
-
-      await queryInterface.addConstraint('batches', {
-        fields: ['grading_policy_id'],
-        type: 'foreign key',
-        name: 'fk_batches_grading_policy_id',
-        references: { table: 'grading_policies', field: 'policy_id' },
-        onDelete: 'SET NULL',
         onUpdate: 'CASCADE',
         transaction: t
       });
@@ -765,8 +732,7 @@ export default {
       await queryInterface.dropTable('assessment_tasks', { transaction: t });
       await queryInterface.dropTable('assessment_plans', { transaction: t });
       await queryInterface.dropTable('batches', { transaction: t });
-      await queryInterface.dropTable('grade_scale_items', { transaction: t });
-      await queryInterface.dropTable('grading_policies', { transaction: t });
+        await queryInterface.dropTable('grade_scales', { transaction: t });
       await queryInterface.dropTable('academic_years', { transaction: t });
       await queryInterface.dropTable('level_modules', { transaction: t });
       await queryInterface.dropTable('modules', { transaction: t });

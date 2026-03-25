@@ -1,7 +1,7 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database.js';
 import { Student } from '../students/student.model.js';
-import { Batch } from '../academics/academic.model.js';
+import { Batch, Level } from '../academics/academic.model.js';
 import { Instructor } from '../instructors/instructor.model.js';
 import { ModuleOffering } from '../enrollment/enrollment.model.js';
 
@@ -114,7 +114,8 @@ GradeScale.init({
   max_score: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
 
   letter: { type: DataTypes.STRING(5), allowNull: false },
-  grade_point: { type: DataTypes.DECIMAL(3, 2), allowNull: false }
+  grade_point: { type: DataTypes.DECIMAL(3, 2), allowNull: false },
+  is_pass: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }
 
 }, {
   sequelize,
@@ -229,9 +230,13 @@ StudentGpaRecord.init({
     references: { model: 'batches', key: 'batch_id' }
   },
 
-  semester: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
+  level_id: {
+    type: DataTypes.TINYINT.UNSIGNED,
+    allowNull: false,
+    references: { model: 'levels', key: 'level_id' }
+  },
 
-  semester_gpa: { type: DataTypes.DECIMAL(4, 2), allowNull: false },
+  level_gpa: { type: DataTypes.DECIMAL(4, 2), allowNull: false },
   cumulative_gpa: { type: DataTypes.DECIMAL(4, 2), allowNull: false }
 
 }, {
@@ -239,7 +244,7 @@ StudentGpaRecord.init({
   tableName: 'student_gpa_records',
   underscored: true,
   indexes: [
-    { unique: true, fields: ['student_pk', 'batch_id', 'semester'] }
+    { unique: true, fields: ['student_pk', 'batch_id', 'level_id'] }
   ]
 });
 
@@ -259,8 +264,8 @@ StudentAssessmentScore.belongsTo(Student, { foreignKey: 'student_pk' });
 Student.hasMany(StudentResult, { foreignKey: 'student_pk' });
 StudentResult.belongsTo(Student, { foreignKey: 'student_pk' });
 
-ModuleOffering.hasMany(StudentResult, { foreignKey: 'offering_id' });
-StudentResult.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
+ModuleOffering.hasMany(StudentResult, { foreignKey: 'offering_id', as: 'results' });
+StudentResult.belongsTo(ModuleOffering, { foreignKey: 'offering_id', as: 'module_offering' });
 
 GradeSubmission.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
 GradeSubmission.belongsTo(Instructor, { foreignKey: 'instructor_id' });
@@ -277,6 +282,8 @@ GradeSubmission.hasMany(Approval, { foreignKey: 'submission_id' });
 
 Student.hasMany(StudentGpaRecord, { foreignKey: 'student_pk' });
 Batch.hasMany(StudentGpaRecord, { foreignKey: 'batch_id' });
+Level.hasMany(StudentGpaRecord, { foreignKey: 'level_id' });
 
 StudentGpaRecord.belongsTo(Student, { foreignKey: 'student_pk' });
 StudentGpaRecord.belongsTo(Batch, { foreignKey: 'batch_id' });
+StudentGpaRecord.belongsTo(Level, { foreignKey: 'level_id' });

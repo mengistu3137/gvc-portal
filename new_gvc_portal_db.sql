@@ -131,15 +131,17 @@ CREATE TABLE `academic_years` (
   PRIMARY KEY (`academic_year_id`)
 ) ENGINE=InnoDB;
 
--- 12. Grading Policy table
-CREATE TABLE `grading_policies` (
-  `policy_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `policy_name` VARCHAR(120) NOT NULL UNIQUE,
-  `is_locked` BOOLEAN NOT NULL DEFAULT FALSE,
-  `grade_scale` JSON NOT NULL,
+-- 12. Grade Scale table
+CREATE TABLE `grade_scales` (
+  `scale_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `min_score` DECIMAL(5,2) NOT NULL,
+  `max_score` DECIMAL(5,2) NOT NULL,
+  `letter` VARCHAR(5) NOT NULL,
+  `grade_point` DECIMAL(3,2) NOT NULL,
+  `is_pass` BOOLEAN NOT NULL DEFAULT TRUE,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`policy_id`)
+  PRIMARY KEY (`scale_id`)
 ) ENGINE=InnoDB;
 
 -- ==============================================
@@ -152,9 +154,8 @@ CREATE TABLE `batches` (
   `occupation_id` INT NOT NULL,
   `academic_year_id` INT NOT NULL,
   `level_id` TINYINT UNSIGNED NOT NULL,
-  `grading_policy_id` BIGINT UNSIGNED,
   `batch_code` VARCHAR(40) UNIQUE,
-  `track_type` ENUM('REGULAR', 'EXTENSION') DEFAULT 'REGULAR',
+  `division` ENUM('REGULAR', 'EXTENSION') DEFAULT 'REGULAR',
   `capacity` INT DEFAULT 0,
   `metadata` JSON,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -163,8 +164,7 @@ CREATE TABLE `batches` (
   PRIMARY KEY (`batch_id`),
   FOREIGN KEY (`occupation_id`) REFERENCES `occupations`(`occupation_id`) ON DELETE RESTRICT,
   FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years`(`academic_year_id`) ON DELETE RESTRICT,
-  FOREIGN KEY (`level_id`) REFERENCES `levels`(`level_id`),
-  FOREIGN KEY (`grading_policy_id`) REFERENCES `grading_policies`(`policy_id`) ON DELETE SET NULL
+  FOREIGN KEY (`level_id`) REFERENCES `levels`(`level_id`)
 ) ENGINE=InnoDB;
 
 -- 14. Level Module table

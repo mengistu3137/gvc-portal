@@ -27,7 +27,10 @@
     { "key": "levelModuleId", "value": "", "type": "string" },
     { "key": "instructorId", "value": "", "type": "string" },
     { "key": "staffId", "value": "", "type": "string" },
-    { "key": "studentId", "value": "", "type": "string" }
+    { "key": "studentId", "value": "", "type": "string" },
+    { "key": "offeringId", "value": "", "type": "string" },
+    { "key": "enrollmentId", "value": "", "type": "string" },
+    { "key": "submissionId", "value": "", "type": "string" }
   ],
   "event": [
     {
@@ -54,12 +57,21 @@
           "  if (data.instructor_id) pm.collectionVariables.set('instructorId', String(data.instructor_id));",
           "  if (data.staff_id) pm.collectionVariables.set('staffId', String(data.staff_id));",
           "  if (data.student_pk) pm.collectionVariables.set('studentId', String(data.student_pk));",
+          "  if (data.offering_id) pm.collectionVariables.set('offeringId', String(data.offering_id));",
+          "  if (data.enrollment_id) pm.collectionVariables.set('enrollmentId', String(data.enrollment_id));",
+          "  if (data.submission_id) pm.collectionVariables.set('submissionId', String(data.submission_id));",
           "",
           "  if (!pm.collectionVariables.get('instructorId') && response.rows && response.rows.length && response.rows[0].instructor_id) {",
           "    pm.collectionVariables.set('instructorId', String(response.rows[0].instructor_id));",
           "  }",
           "  if (!pm.collectionVariables.get('studentId') && response.rows && response.rows.length && response.rows[0].student_pk) {",
           "    pm.collectionVariables.set('studentId', String(response.rows[0].student_pk));",
+          "  }",
+          "  if (!pm.collectionVariables.get('offeringId') && response.rows && response.rows.length && response.rows[0].offering_id) {",
+          "    pm.collectionVariables.set('offeringId', String(response.rows[0].offering_id));",
+          "  }",
+          "  if (!pm.collectionVariables.get('submissionId') && response.rows && response.rows.length && response.rows[0].submission_id) {",
+          "    pm.collectionVariables.set('submissionId', String(response.rows[0].submission_id));",
           "  }",
           "}"
         ]
@@ -475,7 +487,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"occupation_id\": {{occupationId}},\n  \"academic_year_id\": {{academicYearId}},\n  \"level_id\": {{levelId}},\n  \"track_type\": \"REGULAR\",\n  \"capacity\": 45\n}",
+              "raw": "{\n  \"occupation_id\": {{occupationId}},\n  \"academic_year_id\": {{academicYearId}},\n  \"level_id\": {{levelId}},\n  \"division\": \"REGULAR\",\n  \"capacity\": 45\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": { "raw": "{{baseUrl}}/academics/batches", "host": ["{{baseUrl}}"], "path": ["academics", "batches"] }
@@ -775,6 +787,190 @@
           "request": {
             "method": "DELETE",
             "url": { "raw": "{{baseUrl}}/students/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["students", "{{studentId}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Enrollment",
+      "item": [
+        {
+          "name": "List Offerings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/enrollment/offerings?batch_id=&module_id=&instructor_id=",
+              "host": ["{{baseUrl}}"],
+              "path": ["enrollment", "offerings"],
+              "query": [
+                { "key": "batch_id", "value": "" },
+                { "key": "module_id", "value": "" },
+                { "key": "instructor_id", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Enrollment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_pk\": {{studentId}},\n  \"offering_id\": {{offeringId}},\n  \"status\": \"ENROLLED\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/enrollment", "host": ["{{baseUrl}}"], "path": ["enrollment"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Enrollments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/enrollment?student_pk=&offering_id=",
+              "host": ["{{baseUrl}}"],
+              "path": ["enrollment"],
+              "query": [
+                { "key": "student_pk", "value": "" },
+                { "key": "offering_id", "value": "" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Enrollment",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DROPPED\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/enrollment/{{enrollmentId}}", "host": ["{{baseUrl}}"], "path": ["enrollment", "{{enrollmentId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Enrollment",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/enrollment/{{enrollmentId}}", "host": ["{{baseUrl}}"], "path": ["enrollment", "{{enrollmentId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate GPA",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/enrollment/gpa/{{studentId}}/{{levelId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["enrollment", "gpa", "{{studentId}}", "{{levelId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Grading",
+      "item": [
+        {
+          "name": "List Grade Submissions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/grading/submissions?status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "submissions"],
+              "query": [{ "key": "status", "value": "" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Grade Submission",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offering_id\": {{offeringId}},\n  \"instructor_id\": {{instructorId}},\n  \"status\": \"DRAFT\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/grading/submissions", "host": ["{{baseUrl}}"], "path": ["grading", "submissions"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Submission Status",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"next_status\": \"APPROVED\",\n  \"note\": \"Status change via Postman\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/grading/submissions/{{submissionId}}/status", "host": ["{{baseUrl}}"], "path": ["grading", "submissions", "{{submissionId}}", "status"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Upsert Student Grade",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_pk\": {{studentId}},\n  \"offering_id\": {{offeringId}},\n  \"assessment_scores\": [\n    { \"name\": \"Final Exam\", \"score\": 85, \"weight\": 70 },\n    { \"name\": \"Project\", \"score\": 90, \"weight\": 30 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/grading/grades", "host": ["{{baseUrl}}"], "path": ["grading", "grades"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Upsert Student Grades Bulk",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rows\": [\n    {\n      \"student_pk\": {{studentId}},\n      \"offering_id\": {{offeringId}},\n      \"assessment_scores\": [\n        { \"name\": \"Overall\", \"weight\": 100, \"score\": 85 }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/grading/grades/bulk", "host": ["{{baseUrl}}"], "path": ["grading", "grades", "bulk"] }
+          },
+          "response": []
+        },
+        {
+          "name": "List Assessments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/grading/assessments/{{offeringId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "assessments", "{{offeringId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Final Grade",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/grading/calculate/{{studentId}}/{{offeringId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "calculate", "{{studentId}}", "{{offeringId}}"]
+            }
           },
           "response": []
         }

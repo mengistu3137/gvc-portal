@@ -24,9 +24,6 @@ const ids = {
   instructorId: null,
   staffId: null,
   enrollmentId: null,
-  policyId: null,
-  scaleItemIdA: null,
-  scaleItemIdB: null,
   planId: null,
   taskId: null,
   submissionId: null
@@ -84,8 +81,6 @@ function summarize(data) {
             'instructor_id',
             'staff_id',
             'enrollment_id',
-            'policy_id',
-            'scale_item_id',
             'plan_id',
             'task_id',
             'submission_id',
@@ -119,8 +114,6 @@ function summarize(data) {
     'instructor_id',
     'staff_id',
     'enrollment_id',
-    'policy_id',
-    'scale_item_id',
     'plan_id',
     'task_id',
     'submission_id',
@@ -206,7 +199,7 @@ async function main() {
     'Create academics master data (sector, occupation, level, year, module, batch, curriculum)',
     'Create and verify student/instructor/staff profiles',
     'Run enrollment eligibility and enrollment creation/update',
-    'Run grading policy + scale + assessment + submission + final grade + GPA',
+    'Run grading scale + assessment + submission + final grade + GPA',
     'Run cleanup deletes in reverse dependency order'
   ];
 
@@ -327,7 +320,7 @@ async function main() {
         occupation_id: ids.occupationId,
         academic_year_id: ids.academicYearId,
         level_id: ids.levelId,
-        track_type: 'REGULAR',
+        division: 'REGULAR',
         capacity: 30
       },
       authHeaders(adminToken)
@@ -409,7 +402,7 @@ async function main() {
     return resp;
   });
 
-  await runStep('Create enrollment prerequisite relation (self prerequisite test skipped by policy)', async () => {
+  await runStep('Create enrollment prerequisite relation (self prerequisite to force failure)', async () => {
     const resp = await api.post(
       '/enrollment/prerequisites',
       {
@@ -464,61 +457,6 @@ async function main() {
       }
       throw err;
     }
-  });
-
-  await runStep('Create grading policy', async () => {
-    const resp = await api.post(
-      '/grading/policies',
-      {
-        policy_name: `E2E Policy ${RUN_ID}`
-      },
-      authHeaders(adminToken)
-    );
-    ids.policyId = resp.data?.data?.policy_id;
-    return resp;
-  });
-
-  await runStep('Add grade scale item A (0-59 F)', async () => {
-    const resp = await api.post(
-      `/grading/policies/${ids.policyId}/scale-items`,
-      {
-        letter_grade: 'F',
-        min_score: 0,
-        max_score: 59,
-        grade_points: 0.0,
-        is_pass: false
-      },
-      authHeaders(adminToken)
-    );
-    ids.scaleItemIdA = resp.data?.data?.scale_item_id;
-    return resp;
-  });
-
-  await runStep('Add grade scale item B (60-100 A)', async () => {
-    const resp = await api.post(
-      `/grading/policies/${ids.policyId}/scale-items`,
-      {
-        letter_grade: 'A',
-        min_score: 60,
-        max_score: 100,
-        grade_points: 4.0,
-        is_pass: true
-      },
-      authHeaders(adminToken)
-    );
-    ids.scaleItemIdB = resp.data?.data?.scale_item_id;
-    return resp;
-  });
-
-  await runStep('Attach grading policy to batch', async () => {
-    const resp = await api.put(
-      `/academics/batches/${ids.batchId}`,
-      {
-        grading_policy_id: ids.policyId
-      },
-      authHeaders(adminToken)
-    );
-    return resp;
   });
 
   await runStep('Create assessment plan', async () => {
