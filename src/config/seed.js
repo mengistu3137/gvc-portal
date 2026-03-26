@@ -2,6 +2,10 @@ import argon2 from 'argon2';
 import sequelize from './database.js';
 import { UserAccount, Role, Permission } from '../modules/auth/auth.model.js';
 import { Person } from '../modules/persons/person.model.js';
+import { StudentIdSequence, Student } from '../modules/students/student.model.js';
+import { Instructor } from '../modules/instructors/instructor.model.js';
+import { StaffIdSequence, Staff } from '../modules/staff/staff.model.js';
+import { ModuleOffering, Enrollment } from '../modules/enrollment/enrollment.model.js';
 import {
   Sector,
   Occupation,
@@ -11,7 +15,7 @@ import {
   Batch,
   LevelModule
 } from '../modules/academics/academic.model.js';
-import { GradingPolicy } from '../modules/grading/grading.model.js';
+import { GradeScale, Assessment, StudentResult } from '../modules/grading/grading.model.js';
 
 const seedDatabase = async () => {
   try {
@@ -56,10 +60,9 @@ const seedDatabase = async () => {
       { permission_code: 'approve_grades_qa', permission_name: 'Approve Grades as QA', module_scope: 'GRADING' },
       { permission_code: 'approve_grades_tvet', permission_name: 'Approve Grades as TVET', module_scope: 'GRADING' },
       { permission_code: 'finalize_grades_registrar', permission_name: 'Finalize Grades as Registrar', module_scope: 'GRADING' },
-      { permission_code: 'manage_grading_policy', permission_name: 'Create/Edit Grading Policies (JSON grade scales)', module_scope: 'GRADING' },
 
       // ENROLLMENT / PROGRESS
-      { permission_code: 'manage_enrollment', permission_name: 'Create/Update Enrollment and Prerequisites', module_scope: 'ENROLLMENT' },
+      { permission_code: 'manage_enrollment', permission_name: 'Create/Update Enrollment and Offerings', module_scope: 'ENROLLMENT' },
       { permission_code: 'view_academic_progress', permission_name: 'View Student GPA and Academic Progress', module_scope: 'ENROLLMENT' },
 
       // STUDENTS
@@ -99,7 +102,6 @@ const seedDatabase = async () => {
           'manage_batch',
           'manage_grading',
           'finalize_grades_registrar',
-          'manage_grading_policy',
           'manage_enrollment',
           'view_academic_progress'
         ]
@@ -112,6 +114,19 @@ const seedDatabase = async () => {
     await studentRole.setGranted_permissions(studentPerms);
 
     console.log('✅ Permissions mapped to Roles');
+
+    // 5. Seed core identities for Instructor, Staff, Student (linked to Persons)
+    const makePerson = async (first_name, last_name, email) => {
+      const [person] = await Person.findOrCreate({
+        where: { email },
+        defaults: { first_name, last_name, email }
+      });
+      return person;
+    };
+
+    const instructorPerson = await makePerson('Ina', 'Instructor', 'instructor@gvc.edu');
+    const staffPerson = await makePerson('Sam', 'Staff', 'staff@gvc.edu');
+    const studentPerson = await makePerson('Stu', 'Student', 'student@gvc.edu');
 
     // 5. Seed Academics Core Data (idempotent)
     const [healthSector] = await Sector.findOrCreate({
@@ -184,43 +199,38 @@ const seedDatabase = async () => {
       }
     });
 
-    // 6b. Seed a default grading policy aligned to new JSON schema
+    // 6b. Seed a default grade scale for system-wide grading
     const defaultGradeScale = [
-      { letter_grade: 'A', min_score: 85, max_score: 100, grade_points: 4.0, is_pass: true },
-      { letter_grade: 'B', min_score: 75, max_score: 84.99, grade_points: 3.0, is_pass: true },
-      { letter_grade: 'C', min_score: 65, max_score: 74.99, grade_points: 2.0, is_pass: true },
-      { letter_grade: 'D', min_score: 50, max_score: 64.99, grade_points: 1.0, is_pass: true },
-      { letter_grade: 'F', min_score: 0, max_score: 49.99, grade_points: 0, is_pass: false }
+      { letter: 'A', min_score: 85, max_score: 100, grade_point: 4.0, is_pass: true },
+      { letter: 'B', min_score: 75, max_score: 84.99, grade_point: 3.0, is_pass: true },
+      { letter: 'C', min_score: 65, max_score: 74.99, grade_point: 2.0, is_pass: true },
+      { letter: 'D', min_score: 50, max_score: 64.99, grade_point: 1.0, is_pass: true },
+      { letter: 'F', min_score: 0, max_score: 49.99, grade_point: 0, is_pass: false }
     ];
 
-    const [defaultPolicy] = await GradingPolicy.findOrCreate({
-      where: { policy_name: 'Default Policy' },
-      defaults: { is_locked: false, grade_scale: defaultGradeScale }
-    });
+    await GradeScale.bulkCreate(defaultGradeScale, { ignoreDuplicates: true });
 
     const [nursingBatch] = await Batch.findOrCreate({
       where: {
         occupation_id: nursingOccupation.occupation_id,
         academic_year_id: year2526.academic_year_id,
         level_id: 4,
-        track_type: 'REGULAR'
+        division: 'REGULAR'
       },
       defaults: {
-        capacity: 45,
-        grading_policy_id: defaultPolicy.policy_id
+        capacity: 45
       }
     });
 
-    await Batch.findOrCreate({
+    const [softwareBatch] = await Batch.findOrCreate({
       where: {
         occupation_id: softwareOccupation.occupation_id,
         academic_year_id: year2526.academic_year_id,
         level_id: 4,
-        track_type: 'REGULAR'
+        division: 'REGULAR'
       },
       defaults: {
-        capacity: 40,
-        grading_policy_id: defaultPolicy.policy_id
+        capacity: 40
       }
     });
 
@@ -228,8 +238,7 @@ const seedDatabase = async () => {
       where: {
         occupation_id: nursingOccupation.occupation_id,
         level_id: 4,
-        m_code: nursingModule.m_code,
-        semester: 1
+        m_code: nursingModule.m_code
       },
       defaults: {}
     });
@@ -238,13 +247,97 @@ const seedDatabase = async () => {
       where: {
         occupation_id: softwareOccupation.occupation_id,
         level_id: 4,
-        m_code: softwareModule.m_code,
-        semester: 1
+        m_code: softwareModule.m_code
       },
       defaults: {}
     });
 
-    console.log(`✅ Academics Seeded (Sectors: 2, Occupations: 2, Batches include ID ${nursingBatch.batch_id})`);
+    console.log(`✅ Academics Seeded (Sectors: 2, Occupations: 2, Batches include ID ${nursingBatch.batch_id} / ${softwareBatch.batch_id})`);
+
+    // 6. Seed Instructor and Staff tied to Person
+    const [instructor] = await Instructor.findOrCreate({
+      where: { person_id: instructorPerson.person_id },
+      defaults: {
+        person_id: instructorPerson.person_id,
+        staff_code: 'GVC/INST/001',
+        occupation_id: nursingOccupation.occupation_id,
+        employment_status: 'ACTIVE'
+      }
+    });
+
+    await StaffIdSequence.findOrCreate({
+      where: { category: 'STF', reg_year: 2018 },
+      defaults: { last_seq: 1 }
+    });
+
+    await Staff.findOrCreate({
+      where: { person_id: staffPerson.person_id },
+      defaults: {
+        person_id: staffPerson.person_id,
+        staff_code: 'GVC/STF/001',
+        staff_type: 'REGISTRAR',
+        employment_status: 'ACTIVE'
+      }
+    });
+
+    // 7. Seed Student (aligned to Nursing batch/level for enrollment checks)
+    await StudentIdSequence.findOrCreate({
+      where: { reg_year: 2018 },
+      defaults: { last_seq: 1 }
+    });
+
+    const [student] = await Student.findOrCreate({
+      where: { person_id: studentPerson.person_id },
+      defaults: {
+        person_id: studentPerson.person_id,
+        student_id: 'GVC/STD/2018/0001',
+        reg_year: 2018,
+        reg_sequence: 1,
+        occupation_id: nursingOccupation.occupation_id,
+        level_id: 4,
+        batch_id: nursingBatch.batch_id,
+        status: 'ACTIVE'
+      }
+    });
+
+    // 8. Seed Module Offering tied to instructor and batch
+    const [offering] = await ModuleOffering.findOrCreate({
+      where: {
+        module_id: nursingModule.module_id,
+        batch_id: nursingBatch.batch_id,
+        section_code: 'A'
+      },
+      defaults: {
+        instructor_id: instructor.instructor_id,
+        capacity: 40
+      }
+    });
+
+    // 9. Seed Enrollment linking student to offering (status ENROLLED only)
+    await Enrollment.findOrCreate({
+      where: { student_pk: student.student_pk, offering_id: offering.offering_id },
+      defaults: { status: 'ENROLLED' }
+    });
+
+    // 10. Seed Assessments and a computed StudentResult for GPA/grade flows
+    const [finalAssessment] = await Assessment.findOrCreate({
+      where: { offering_id: offering.offering_id, name: 'Final Exam' },
+      defaults: { weight: 100 }
+    });
+
+    await StudentResult.findOrCreate({
+      where: {
+        student_pk: student.student_pk,
+        offering_id: offering.offering_id,
+        attempt_no: 1
+      },
+      defaults: {
+        total_score: 88,
+        letter_grade: 'A',
+        grade_point: 4.0,
+        status: 'PASSED'
+      }
+    });
 
     // 6. Define Default Password
     const defaultPassword = await argon2.hash('password123', { type: argon2.argon2id });

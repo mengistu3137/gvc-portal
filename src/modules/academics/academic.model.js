@@ -54,16 +54,7 @@ Module.init({
   },
   learning_hours: { type: DataTypes.INTEGER, defaultValue: 0 },
   credit_units: { type: DataTypes.DECIMAL(5, 2), allowNull: false },
-assessments: {
-  type: DataTypes.JSON,
-  allowNull: true,
-  defaultValue: [],
-  get() {
-    const raw = this.getDataValue('assessments');
-    if (typeof raw === 'string') return JSON.parse(raw);
-    return raw;
-  }
-}
+
 }, { 
   sequelize,
   modelName: 'module',
@@ -71,18 +62,7 @@ assessments: {
   paranoid: true,
   underscored: true,
   indexes: [{ unique: true, fields: ['m_code'] }],
-  hooks: {
-    // Keep parity with DB trigger: ensure assessment weights sum to 100 when provided
-    beforeValidate: (module) => {
-      const items = module.assessments;
-      if (Array.isArray(items) && items.length) {
-        const total = items.reduce((acc, cur) => acc + Number(cur?.max_weight || 0), 0);
-        if (Number.isFinite(total) && Math.abs(total - 100) > 1e-6) {
-          throw new Error(`Assessment weights must sum to 100. Current total: ${total}`);
-        }
-      }
-    }
-  }
+ 
 });
 
 // 6. ACADEMIC YEAR
@@ -101,13 +81,8 @@ Batch.init({
   occupation_id: { type: DataTypes.INTEGER, allowNull: false },
   academic_year_id: { type: DataTypes.INTEGER, allowNull: false },
   level_id: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
-  grading_policy_id: {
-    type: DataTypes.BIGINT.UNSIGNED,
-    allowNull: true,
-    references: { model: 'grading_policies', key: 'policy_id' }
-  },
   batch_code: { type: DataTypes.STRING(40), unique: true },
-  track_type: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
+  division: { type: DataTypes.ENUM('REGULAR', 'EXTENSION'), defaultValue: 'REGULAR' },
   capacity: { type: DataTypes.INTEGER, defaultValue: 0 },
   metadata: { type: DataTypes.JSON, allowNull: true }
 }, { 
@@ -121,8 +96,9 @@ Batch.init({
       const occ = await Occupation.findByPk(batch.occupation_id);
       const year = await AcademicYear.findByPk(batch.academic_year_id);
       if (occ && year) {
-        // Generates: NUR-2015-L4
-        batch.batch_code = `${occ.occupation_code}-${year.academic_year_label}-L${batch.level_id}`;
+        // Generates: NUR-2015-L4-R
+
+        batch.batch_code = `${occ.occupation_code}-${year.academic_year_label}-L${batch.level_id}-${batch.division === 'EXTENSION' ? 'E' : 'R'}`;
       }
     }
   }
@@ -152,11 +128,6 @@ LevelModule.init({
     allowNull: false
   },
 
-  semester: {
-    type: DataTypes.TINYINT.UNSIGNED,
-    defaultValue: 1
-  },
-
   is_elective: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
@@ -170,7 +141,7 @@ LevelModule.init({
   timestamps: false,
   underscored: true,
   indexes: [
-    { fields: ['level_id', 'occupation_id', 'semester'] }
+    { fields: ['level_id', 'occupation_id', 'm_code'], unique: true }
   ]
 });
 
@@ -201,7 +172,7 @@ AcademicYear.hasMany(Batch, { foreignKey: 'academic_year_id' });
 Batch.belongsTo(AcademicYear, { foreignKey: 'academic_year_id', as: 'academic_year' });
 
 // --- CURRICULUM (LEVEL MODULE) RELATIONSHIPS ---
-// Since LevelModule has extra fields (occupation_id, semester), 
+// Since LevelModule has extra fields (occupation_id), 
 // we treat it as a standard entity, not just a hidden 'through' table.
 
 // LevelModule links to Module

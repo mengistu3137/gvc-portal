@@ -19,7 +19,6 @@ const navItems = [
   { label: 'Staff', icon: UsersRound, to: '/staff' },
   { label: 'Grade Entry', icon: BookOpenCheck, to: '/grade-entry' },
   { label: 'Grading', icon: ShieldCheck, to: '/grading' },
-  { label: 'Policies', icon: ShieldCheck, to: '/grading-policies' },
   { label: 'Students', icon: GraduationCap, to: '/students' },
   { label: 'Enrollment', icon: ShieldCheck, to: '/enrollment' },
   { label: 'Explorer', icon: Bell, to: '/academic-explorer' },

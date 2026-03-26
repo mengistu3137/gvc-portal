@@ -4,7 +4,7 @@ const TABLES_IN_CREATION_ORDER = [
   'levels',
   'modules',
   'academic_years',
-  'grading_policies',
+  'grade_scales',
   'batches',
   'level_modules',
   'persons',
@@ -22,7 +22,6 @@ const TABLES_IN_CREATION_ORDER = [
   'assessment_tasks',
   'student_grades',
   'grade_submissions',
-  'grade_scale_items',
   'module_enrollments',
   'module_prerequisites',
   'enrollments',
@@ -138,10 +137,13 @@ const createCoreAcademicTables = async (queryInterface, Sequelize, transaction) 
     end_date: { type: Sequelize.DATEONLY, allowNull: false }
   }, { ...INNODB_TABLE_OPTIONS, transaction });
 
-  await queryInterface.createTable('grading_policies', {
-    policy_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, autoIncrement: true, primaryKey: true },
-    policy_name: { type: Sequelize.STRING(120), allowNull: false, unique: true },
-    is_locked: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+  await queryInterface.createTable('grade_scales', {
+    scale_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, autoIncrement: true, primaryKey: true },
+    min_score: { type: Sequelize.DECIMAL(5, 2), allowNull: false },
+    max_score: { type: Sequelize.DECIMAL(5, 2), allowNull: false },
+    letter: { type: Sequelize.STRING(5), allowNull: false },
+    grade_point: { type: Sequelize.DECIMAL(3, 2), allowNull: false },
+    is_pass: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
     created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
     updated_at: {
       type: Sequelize.DATE,
@@ -173,15 +175,8 @@ const createCoreAcademicTables = async (queryInterface, Sequelize, transaction) 
       onUpdate: 'CASCADE',
       onDelete: 'RESTRICT'
     },
-    grading_policy_id: {
-      type: Sequelize.BIGINT.UNSIGNED,
-      allowNull: true,
-      references: { model: 'grading_policies', key: 'policy_id' },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL'
-    },
     batch_code: { type: Sequelize.STRING(40), allowNull: true, unique: true },
-    track_type: { type: Sequelize.ENUM('REGULAR', 'EXTENSION'), allowNull: false, defaultValue: 'REGULAR' },
+    division: { type: Sequelize.ENUM('REGULAR', 'EXTENSION'), allowNull: false, defaultValue: 'REGULAR' },
     capacity: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
     created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
     updated_at: {
@@ -584,28 +579,6 @@ const createGradingAndEnrollmentTables = async (queryInterface, Sequelize, trans
     name: 'uq_grade_submissions_batch_module',
     transaction
   });
-
-  await queryInterface.createTable('grade_scale_items', {
-    scale_item_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, autoIncrement: true, primaryKey: true },
-    policy_id: {
-      type: Sequelize.BIGINT.UNSIGNED,
-      allowNull: false,
-      references: { model: 'grading_policies', key: 'policy_id' },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE'
-    },
-    letter_grade: { type: Sequelize.STRING(8), allowNull: false },
-    min_score: { type: Sequelize.DECIMAL(6, 2), allowNull: false },
-    max_score: { type: Sequelize.DECIMAL(6, 2), allowNull: false },
-    grade_points: { type: Sequelize.DECIMAL(3, 2), allowNull: false, defaultValue: 0 },
-    is_pass: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
-    created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
-    updated_at: {
-      type: Sequelize.DATE,
-      allowNull: false,
-      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
-    }
-  }, { ...INNODB_TABLE_OPTIONS, transaction });
 
   await queryInterface.createTable('module_enrollments', {
     enrollment_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, autoIncrement: true, primaryKey: true },

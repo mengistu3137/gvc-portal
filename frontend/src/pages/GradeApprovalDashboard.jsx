@@ -10,28 +10,26 @@ import { useCrud } from '../hooks/useCrud';
 import { api } from '../lib/api';
 import { hasPermission } from '../lib/permissions';
 
+// Backend GradeSubmission status enum: DRAFT | SUBMITTED | APPROVED | REJECTED
 const STATUS_ACTIONS = {
   DRAFT: [{ label: 'Submit', next: 'SUBMITTED', permission: 'manage_grading' }],
   SUBMITTED: [
-    { label: 'Approve HOD', next: 'HOD_APPROVED', permission: 'approve_grades_hod' },
+    { label: 'Approve', next: 'APPROVED', permission: 'manage_grading' },
     { label: 'Reject', next: 'REJECTED', permission: 'manage_grading' },
   ],
-  HOD_APPROVED: [{ label: 'Finalize', next: 'FINALIZED', permission: 'finalize_grades_registrar' }],
+  APPROVED: [],
   REJECTED: [{ label: 'Reopen', next: 'DRAFT', permission: 'manage_grading' }],
 };
 
 const STATUS_STYLE = {
   DRAFT: 'outline',
   SUBMITTED: 'primary',
-  HOD_APPROVED: 'success',
-  QA_APPROVED: 'success',
-  TVET_APPROVED: 'success',
-  FINALIZED: 'accent',
+  APPROVED: 'success',
   REJECTED: 'destructive',
 };
 
 export function GradeApprovalDashboard() {
-  const [skipNotes, setSkipNotes] = useState('');
+  const [statusNote, setStatusNote] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
 
@@ -47,7 +45,7 @@ export function GradeApprovalDashboard() {
       id: row.submission_id,
       payload: {
         next_status: targetStatus,
-        note: targetStatus === 'FINALIZED' ? skipNotes || row.note || null : row.note || null,
+        note: statusNote || row.note || null,
       },
       method: 'put',
     }, {
@@ -66,10 +64,12 @@ export function GradeApprovalDashboard() {
     if (!context.sourceFile) {
       const payload = rows.map((row) => ({
         student_pk: Number(row.student_pk),
-        task_id: Number(row.task_id),
-        batch_id: Number(row.batch_id),
-        module_id: Number(row.module_id),
-        obtained_score: Number(row.obtained_score),
+        offering_id: Number(row.offering_id),
+        assessment_scores: [{
+          name: row.assessment_name || 'Overall',
+          weight: 100,
+          score: Number(row.obtained_score),
+        }],
       }));
 
       setProgress(50);
@@ -101,12 +101,12 @@ export function GradeApprovalDashboard() {
         header: 'Submission',
       },
       {
-        accessorKey: 'module_id',
-        header: 'Module',
+        accessorKey: 'offering_id',
+        header: 'Offering',
       },
       {
-        accessorKey: 'batch_id',
-        header: 'Batch',
+        accessorKey: 'instructor_id',
+        header: 'Instructor',
       },
       {
         accessorKey: 'status',
@@ -146,13 +146,7 @@ export function GradeApprovalDashboard() {
             <div className="flex flex-wrap gap-2">
               {actions.map((action) => {
                 const allowed = hasPermission(action.permission);
-                const needsSkipNote = action.next === 'FINALIZED' && row.original.status === 'HOD_APPROVED';
-                const blockedByNote = needsSkipNote && !skipNotes.trim();
-                const blockedReason = !allowed
-                  ? 'Permission required'
-                  : blockedByNote
-                    ? 'Skip note required'
-                    : null;
+                const blockedReason = !allowed ? 'Permission required' : null;
 
                 return (
                   <Button
@@ -160,7 +154,7 @@ export function GradeApprovalDashboard() {
                     size="sm"
                     variant={action.next === 'REJECTED' ? 'destructive' : 'default'}
                     onClick={() => handleTransition(row.original, action.next)}
-                    disabled={!allowed || blockedByNote || updateSubmission.isPending}
+                    disabled={!allowed || updateSubmission.isPending}
                     title={blockedReason || `Move to ${action.next}`}
                   >
                     {action.label}
@@ -172,7 +166,7 @@ export function GradeApprovalDashboard() {
         },
       },
     ],
-    [updateSubmission, skipNotes]
+    [updateSubmission, statusNote]
   );
 
   const hierarchyItems = [
@@ -197,15 +191,12 @@ export function GradeApprovalDashboard() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="max-w-xl space-y-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-600">Skip Notes</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-600">Status note</label>
             <Textarea
-              value={skipNotes}
-              onChange={(event) => setSkipNotes(event.target.value)}
-              placeholder="Required for skip/escalation workflows"
+              value={statusNote}
+              onChange={(event) => setStatusNote(event.target.value)}
+              placeholder="Optional note for status changes"
             />
-            <p className="text-[11px] text-slate-600">
-              Finalize from HOD-approved state requires a skip note for a complete audit trail.
-            </p>
           </div>
 
           <DataTable
@@ -228,7 +219,7 @@ export function GradeApprovalDashboard() {
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm text-slate-700">
-                    Submission #{selectedSubmission.submission_id} for module {selectedSubmission.module_id}
+                    Submission #{selectedSubmission.submission_id} for offering {selectedSubmission.offering_id}
                   </p>
                   <div>
                     <Badge variant={STATUS_STYLE[selectedSubmission.status] || 'outline'}>
@@ -262,7 +253,7 @@ export function GradeApprovalDashboard() {
               open={importOpen}
               onClose={() => setImportOpen(false)}
               title="Import Grades from Excel/CSV"
-              requiredFields={['student_pk', 'task_id', 'batch_id', 'module_id', 'obtained_score']}
+                requiredFields={['student_pk', 'offering_id', 'obtained_score']}
               onImport={importRows}
             />
           ) : null}

@@ -1,211 +1,171 @@
+import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
-import { Module, Batch } from '../academics/academic.model.js';
-import { ModuleEnrollment } from '../grading/grading.model.js';
+import { Enrollment, ModuleOffering } from './enrollment.model.js';
 import { Student } from '../students/student.model.js';
-import { Enrollment, ModulePrerequisite, StudentGpaRecord } from './enrollment.model.js';
-
-const has = (actor, permission) => (actor?.permissions || []).includes(permission);
+import { Module, Batch, Level } from '../academics/academic.model.js';
+import { Instructor } from '../instructors/instructor.model.js';
+import { StudentResult } from '../grading/grading.model.js';
 
 class EnrollmentService {
-  async checkPrerequisites(studentId, moduleId) {
-    const prerequisites = await ModulePrerequisite.findAll({
-      where: { module_id: moduleId },
-      include: [{
-        model: Module,
-        as: 'required_module',
-        attributes: ['module_id', 'm_code', 'unit_competency']
-      }]
-    });
-    if (prerequisites.length === 0) {
-      return { eligible: true, missing: [], missing_module_ids: [], missing_modules: [] };
-    }
+  async createEnrollment(payload, user) {
+    const { student_pk, offering_id, status = 'ENROLLED' } = payload;
 
-    const missing = [];
+    return sequelize.transaction(async (transaction) => {
+      const student = await Student.findByPk(student_pk, { transaction });
+      if (!student) throw new Error('Student not found');
 
-    for (const prerequisite of prerequisites) {
-      const passed = await ModuleEnrollment.findOne({
-        where: {
-          student_pk: studentId,
-          module_id: prerequisite.required_module_id,
-          status: 'PASSED'
-        }
+      const offering = await ModuleOffering.findByPk(offering_id, {
+        include: [{ model: Batch, as: 'batch' }],
+        transaction,
+      });
+      if (!offering) throw new Error('Module offering not found');
+
+      if (student.batch_id && offering.batch_id && String(student.batch_id) !== String(offering.batch_id)) {
+        throw new Error('Student is not part of this offering batch');
+      }
+
+      const [enrollment, created] = await Enrollment.findOrCreate({
+        where: { student_pk, offering_id },
+        defaults: { status },
+        transaction,
       });
 
-      if (!passed) {
-        missing.push({
-          module_id: prerequisite.required_module_id,
-          module_name:
-            prerequisite.required_module?.unit_competency ||
-            prerequisite.required_module?.m_code ||
-            `Module ${prerequisite.required_module_id}`
-        });
+      if (!created && status && enrollment.status !== status) {
+        await enrollment.update({ status }, { transaction });
       }
-    }
 
-    return {
-      eligible: missing.length === 0,
-      missing: missing.map((item) => item.module_name),
-      missing_module_ids: missing.map((item) => item.module_id),
-      missing_modules: missing
-    };
+      return enrollment;
+    });
   }
 
-  async createEnrollment(data, actor) {
-    if (!has(actor, 'manage_enrollment')) {
-      throw new Error('Forbidden: missing manage_enrollment permission.');
-    }
+  async getEnrollments(query, user) {
+    const { student_pk, offering_id, instructor_id } = query;
 
-    const eligibility = await this.checkPrerequisites(data.student_pk, data.module_id);
-    if (!eligibility.eligible) {
-      throw new Error(`Enrollment blocked. Missing passed prerequisite modules: ${eligibility.missing.join(', ')}`);
-    }
-
-    const [enrollment] = await Enrollment.findOrCreate({
+    return Enrollment.findAll({
       where: {
-        student_pk: data.student_pk,
-        module_id: data.module_id,
-        batch_id: data.batch_id
+        ...(student_pk ? { student_pk } : {}),
+        ...(offering_id ? { offering_id } : {}),
       },
-      defaults: {
-        status: data.status || 'ENROLLED'
-      }
+      include: [
+        { model: Student, as: 'student' },
+        {
+          model: ModuleOffering,
+          as: 'offering',
+          include: [
+            { model: Module, as: 'module' },
+            { model: Batch, as: 'batch' },
+            { model: Instructor, as: 'instructor' },
+          ],
+          ...(instructor_id ? { where: { instructor_id } } : {}),
+        },
+      ],
+      order: [['created_at', 'DESC']],
     });
+  }
 
+  async updateEnrollment(id, payload) {
+    const enrollment = await Enrollment.findByPk(id);
+    if (!enrollment) throw new Error('Enrollment not found');
+
+    const updatable = {};
+    if (payload.status) updatable.status = payload.status;
+    if (payload.offering_id) updatable.offering_id = payload.offering_id;
+
+    return enrollment.update(updatable);
+  }
+
+  async deleteEnrollment(id) {
+    const enrollment = await Enrollment.findByPk(id);
+    if (!enrollment) throw new Error('Enrollment not found');
+    await enrollment.destroy();
     return enrollment;
   }
 
-  async updateEnrollment(id, data, actor) {
-    if (!has(actor, 'manage_enrollment')) {
-      throw new Error('Forbidden: missing manage_enrollment permission.');
-    }
+  async listOfferings(filters = {}) {
+    const { level_id, occupation_id, instructor_id, batch_id, module_id } = filters;
 
-    const t = await sequelize.transaction();
-    try {
-      const enrollment = await Enrollment.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE });
-      if (!enrollment) throw new Error('Enrollment not found');
-
-      const targetStudent = data.student_pk || enrollment.student_pk;
-      const targetModule = data.module_id || enrollment.module_id;
-
-      if (data.module_id || data.student_pk) {
-        const eligibility = await this.checkPrerequisites(targetStudent, targetModule);
-        if (!eligibility.eligible) {
-          throw new Error(`Enrollment update blocked. Missing passed prerequisite modules: ${eligibility.missing.join(', ')}`);
-        }
-      }
-
-      await enrollment.update(data, { transaction: t });
-      await t.commit();
-      return enrollment;
-    } catch (error) {
-      await t.rollback();
-      throw error;
-    }
-  }
-
-  async getEnrollments(query, actor) {
-    if (!has(actor, 'manage_enrollment')) {
-      throw new Error('Forbidden: missing manage_enrollment permission.');
-    }
-
-    const where = {};
-    if (query.status) {
-      where.status = query.status;
-    }
-
-    return Enrollment.findAll({
-      where,
-      include: [
-        { model: Student, as: 'student', attributes: ['student_pk', 'student_id'] },
-        { model: Module, as: 'module', attributes: ['module_id', 'm_code', 'unit_competency'] },
-        { model: Batch, as: 'batch', attributes: ['batch_id', 'batch_code'] }
-      ],
-      order: [['created_at', 'DESC']]
-    });
-  }
-
-  async deleteEnrollment(id, actor) {
-    if (!has(actor, 'manage_enrollment')) {
-      throw new Error('Forbidden: missing manage_enrollment permission.');
-    }
-
-    const enrollment = await Enrollment.findByPk(id);
-    if (!enrollment) {
-      throw new Error('Enrollment not found');
-    }
-
-    await enrollment.destroy({ force: true });
-    return { enrollment_id: Number(id) };
-  }
-
-  async calculateStudentGpa(studentId, batchId, actor) {
-    if (!(has(actor, 'view_academic_progress') || has(actor, 'manage_enrollment'))) {
-      throw new Error('Forbidden: missing view_academic_progress permission.');
-    }
-
-    const semesterOutcomes = await ModuleEnrollment.findAll({
+    return ModuleOffering.findAll({
       where: {
-        student_pk: studentId,
-        batch_id: batchId
+        ...(batch_id ? { batch_id } : {}),
+        ...(module_id ? { module_id } : {}),
+        ...(instructor_id ? { instructor_id } : {}),
       },
-      include: [{ model: Module, as: 'module', attributes: ['credit_units'] }]
+      include: [
+        { model: Module, as: 'module', where: occupation_id ? { occupation_id } : undefined },
+        {
+          model: Batch,
+          as: 'batch',
+          where: level_id ? { level_id } : undefined,
+          include: level_id ? [{ model: Level, as: 'level' }] : [],
+        },
+        { model: Instructor, as: 'instructor' },
+      ],
+      order: [['batch_id', 'DESC'], ['module_id', 'ASC']],
+    });
+  }
+
+  async calculateStudentGpa(student_pk, level_id) {
+    const student = await Student.findByPk(student_pk);
+    if (!student) throw new Error('Student not found');
+
+    const results = await StudentResult.findAll({
+      where: { student_pk },
+      include: [
+        {
+          model: ModuleOffering,
+          as: 'module_offering',
+          include: [
+            { model: Module, as: 'module' },
+            { model: Batch, as: 'batch' },
+          ],
+          required: true,
+        },
+      ],
     });
 
-    const semesterTotals = semesterOutcomes.reduce((acc, row) => {
-      const credit = Number(row.module?.credit_units || 0);
-      const gp = Number(row.grade_points || 0);
-      acc.credits += credit;
-      acc.points += gp * credit;
-      return acc;
-    }, { credits: 0, points: 0 });
+    const computeGpa = (rows) => {
+      const totals = rows.reduce(
+        (acc, row) => {
+          const offering = row.module_offering || row.moduleOffering;
+          const module = offering?.module || offering?.Module;
+          const credits = Number(module?.credit_units || 0);
+          const gp = Number(row.grade_point || 0);
 
-    const semesterGpa = semesterTotals.credits > 0
-      ? Number((semesterTotals.points / semesterTotals.credits).toFixed(2))
-      : 0;
+          if (!credits) return acc;
+          acc.gradePoints += gp * credits;
+          acc.credits += credits;
+          return acc;
+        },
+        { gradePoints: 0, credits: 0 }
+      );
 
-    const cumulativeOutcomes = await ModuleEnrollment.findAll({
-      where: { student_pk: studentId },
-      include: [{ model: Module, as: 'module', attributes: ['credit_units'] }]
-    });
-
-    const cumulativeTotals = cumulativeOutcomes.reduce((acc, row) => {
-      const credit = Number(row.module?.credit_units || 0);
-      const gp = Number(row.grade_points || 0);
-      acc.credits += credit;
-      acc.points += gp * credit;
-      return acc;
-    }, { credits: 0, points: 0 });
-
-    const cumulativeGpa = cumulativeTotals.credits > 0
-      ? Number((cumulativeTotals.points / cumulativeTotals.credits).toFixed(2))
-      : 0;
-
-    const [record] = await StudentGpaRecord.findOrCreate({
-      where: { student_pk: studentId, batch_id: batchId },
-      defaults: {
-        semester_gpa: semesterGpa,
-        cumulative_gpa: cumulativeGpa,
-        total_credits: Number(semesterTotals.credits.toFixed(2)),
-        total_grade_points: Number(semesterTotals.points.toFixed(2))
+      if (!totals.credits) {
+        return { gpa: 0, total_grade_points: 0, total_credits: 0 };
       }
+
+      return {
+        gpa: Number((totals.gradePoints / totals.credits).toFixed(2)),
+        total_grade_points: Number(totals.gradePoints.toFixed(2)),
+        total_credits: totals.credits,
+      };
+    };
+
+    const levelResults = results.filter((row) => {
+      const offering = row.module_offering || row.moduleOffering;
+      const batch = offering?.batch || offering?.Batch;
+      return batch && Number(batch.level_id) === Number(level_id);
     });
 
-    if (!record.isNewRecord) {
-      await record.update({
-        semester_gpa: semesterGpa,
-        cumulative_gpa: cumulativeGpa,
-        total_credits: Number(semesterTotals.credits.toFixed(2)),
-        total_grade_points: Number(semesterTotals.points.toFixed(2))
-      });
-    }
+    const levelStats = computeGpa(levelResults);
+    const cumulativeStats = computeGpa(results);
 
     return {
-      student_pk: Number(studentId),
-      batch_id: Number(batchId),
-      semester_gpa: semesterGpa,
-      cumulative_gpa: cumulativeGpa,
-      total_credits: Number(semesterTotals.credits.toFixed(2)),
-      total_grade_points: Number(semesterTotals.points.toFixed(2))
+      student_pk,
+      level_id: Number(level_id),
+      level_gpa: levelStats.gpa,
+      cumulative_gpa: cumulativeStats.gpa,
+      total_grade_points: cumulativeStats.total_grade_points,
+      total_credits: cumulativeStats.total_credits,
     };
   }
 }

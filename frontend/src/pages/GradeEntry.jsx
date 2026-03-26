@@ -10,13 +10,11 @@ import { api } from '../lib/api';
 
 export function GradeEntry() {
   const studentsCrud = useCrud('students');
-  const modulesCrud = useCrud('academics/modules');
-  const batchesCrud = useCrud('academics/batches');
+  const offeringsCrud = useCrud('enrollment/offerings');
 
   const [form, setForm] = useState({
     student_pk: '',
-    module_id: null,
-    batch_id: '',
+    offering_id: null,
     assessment_scores: [],
   });
 
@@ -27,46 +25,40 @@ export function GradeEntry() {
   /* ================= LIST QUERIES ================= */
 
   const studentsQuery = studentsCrud.list({ page: 1, limit: 300 });
-  const modulesQuery = modulesCrud.list({ page: 1, limit: 300 });
-  const batchesQuery = batchesCrud.list({ page: 1, limit: 300 });
+  const offeringsQuery = offeringsCrud.list({ page: 1, limit: 300 });
 
   /* ================= MODULE DETAIL QUERY ================= */
 
   const moduleDetailQuery = useQuery({
-    queryKey: ['module-detail', form.module_id],
+    queryKey: ['offering-assessments', form.offering_id],
     queryFn: async () => {
-      const res = await api.get(`/academics/modules/${form.module_id}`);
-      console.log("🔥 MODULE DETAIL RESPONSE:", res.data);
-      return res.data;   // VERY IMPORTANT (not payload)
+      const res = await api.get(`/grading/assessments/${form.offering_id}`);
+      return res.payload || res.data || [];
     },
-    enabled: false,   // manual control (BEST PRACTICE)
+    enabled: false,
   });
 
   /* ===== Trigger fetch when module changes ===== */
 
   useEffect(() => {
-    if (form.module_id) {
-      console.log("✅ Fetching module detail for:", form.module_id);
+    if (form.offering_id) {
       moduleDetailQuery.refetch();
     }
-  }, [form.module_id]);
+  }, [form.offering_id]);
 
   /* ===== When module detail arrives ===== */
 
   useEffect(() => {
-    if (
-      moduleDetailQuery.data &&
-      Array.isArray(moduleDetailQuery.data.assessments)
-    ) {
-      setModuleAssessments(moduleDetailQuery.data.assessments);
+    if (Array.isArray(moduleDetailQuery.data)) {
+      setModuleAssessments(moduleDetailQuery.data);
 
       setForm((current) => ({
         ...current,
-        assessment_scores:
-          moduleDetailQuery.data.assessments.map((a) => ({
-            name: a.name,
-            score: '',
-          })),
+        assessment_scores: moduleDetailQuery.data.map((a) => ({
+          name: a.name,
+          weight: a.weight,
+          score: '',
+        })),
       }));
     } else {
       setModuleAssessments([]);
@@ -80,10 +72,11 @@ export function GradeEntry() {
   /* ================= TOTAL SCORE ================= */
 
   const totalScore = useMemo(() => {
-    return form.assessment_scores.reduce(
-      (sum, item) => sum + Number(item.score || 0),
-      0
-    );
+    return form.assessment_scores.reduce((sum, item) => {
+      const weight = Number(item.weight || 0);
+      const score = Number(item.score || 0);
+      return sum + (score * weight) / 100;
+    }, 0);
   }, [form.assessment_scores]);
 
   const onAssessmentScore = (index, value) => {
@@ -106,16 +99,15 @@ export function GradeEntry() {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!form.student_pk || !form.module_id || !form.batch_id) {
-      setErrorMessage('Student, module, and batch are required.');
+    if (!form.student_pk || !form.offering_id) {
+      setErrorMessage('Student and offering are required.');
       return;
     }
 
     try {
       await gradeMutation.mutateAsync({
         student_pk: Number(form.student_pk),
-        module_id: Number(form.module_id),
-        batch_id: Number(form.batch_id),
+        offering_id: Number(form.offering_id),
         assessment_scores: form.assessment_scores.map((a) => ({
           ...a,
           score: Number(a.score || 0),
@@ -127,8 +119,7 @@ export function GradeEntry() {
       /* RESET */
       setForm({
         student_pk: '',
-        module_id: null,
-        batch_id: '',
+        offering_id: null,
         assessment_scores: [],
       });
       setModuleAssessments([]);
@@ -140,8 +131,7 @@ export function GradeEntry() {
 
   const isLoading =
     studentsQuery.isLoading ||
-    modulesQuery.isLoading ||
-    batchesQuery.isLoading;
+    offeringsQuery.isLoading;
 
   /* ================= UI ================= */
 
@@ -194,39 +184,22 @@ export function GradeEntry() {
                 ))}
               </select>
 
-              {/* MODULE */}
+              {/* OFFERING */}
               <select
-                value={form.module_id || ''}
+                value={form.offering_id || ''}
                 onChange={(e) =>
                   setForm((c) => ({
                     ...c,
-                    module_id: Number(e.target.value),   // ⭐ FIX
+                    offering_id: Number(e.target.value),
                   }))
                 }
                 className="rounded-md border px-3 py-2 text-sm"
                 required
               >
-                <option value="">Select module</option>
-                {(modulesQuery.data?.rows || modulesQuery.data || []).map((m) => (
-                  <option key={m.module_id} value={m.module_id}>
-                    {m.m_code} — {m.unit_competency}
-                  </option>
-                ))}
-              </select>
-
-              {/* BATCH */}
-              <select
-                value={form.batch_id}
-                onChange={(e) =>
-                  setForm((c) => ({ ...c, batch_id: e.target.value }))
-                }
-                className="rounded-md border px-3 py-2 text-sm"
-                required
-              >
-                <option value="">Select batch</option>
-                {(batchesQuery.data || []).map((b) => (
-                  <option key={b.batch_id} value={b.batch_id}>
-                    {b.batch_code}
+                <option value="">Select offering</option>
+                {(offeringsQuery.data || []).map((o) => (
+                  <option key={o.offering_id} value={o.offering_id}>
+                    {o.module?.m_code || o.module_id} — {o.batch?.batch_code || `Level ${o.batch?.level_id}`} — Section {o.section_code}
                   </option>
                 ))}
               </select>
@@ -276,8 +249,7 @@ export function GradeEntry() {
                 onClick={() => {
                   setForm({
                     student_pk: '',
-                    module_id: null,
-                    batch_id: '',
+                    offering_id: null,
                     assessment_scores: [],
                   });
                   setModuleAssessments([]);

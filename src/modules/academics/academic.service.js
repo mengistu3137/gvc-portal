@@ -272,7 +272,7 @@ class AcademicService {
             as: 'level' 
         }
       ],
-      order: [['semester', 'ASC']]
+      order: [['m_code', 'ASC']]
     });
   }
 

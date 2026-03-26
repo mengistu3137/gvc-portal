@@ -60,7 +60,7 @@ class StudentService {
     if (!batch) throw new Error('Selected Batch does not exist.');
     if (!batch.occupation) throw new Error('Batch metadata error: Occupation not linked.');
 
-    const trackChar = batch.track_type === 'REGULAR' ? 'R' : 'X';
+    const trackChar = batch.division === 'REGULAR' ? 'R' : 'X';
     const occCode = batch.occupation.occupation_code;
     const admissionYearRaw = data.reg_year || batch.academic_year?.academic_year_label || new Date().getFullYear();
     const inferredYear = String(admissionYearRaw).match(/(19|20)\d{2}/)?.[0];
@@ -120,7 +120,7 @@ class StudentService {
             include: [{ model: Sector, as: 'sector', attributes: ['sector_code', 'sector_name'] }]
           },
           { model: Level, as: 'level', attributes: ['level_name'] },
-          { model: Batch, as: 'batch', attributes: ['batch_code', 'track_type'] }
+          { model: Batch, as: 'batch', attributes: ['batch_code', 'division'] }
         ]
       });
 
@@ -157,7 +157,7 @@ class StudentService {
             include: [{ model: Sector, as: 'sector', attributes: ['sector_code', 'sector_name'] }]
           },
           { model: Level, as: 'level', attributes: ['level_name'] },
-          { model: Batch, as: 'batch', attributes: ['batch_code', 'track_type'] }
+          { model: Batch, as: 'batch', attributes: ['batch_code', 'division'] }
         ]
       });
 
@@ -214,7 +214,7 @@ class StudentService {
           include: [{ model: Sector, as: 'sector', attributes: ['sector_code', 'sector_name'] }]
         },
         { model: Level, as: 'level', attributes: ['level_name'] },
-        { model: Batch, as: 'batch', attributes: ['batch_code', 'track_type'] }
+        { model: Batch, as: 'batch', attributes: ['batch_code', 'division'] }
       ],
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
@@ -239,7 +239,7 @@ class StudentService {
           include: [{ model: Sector, as: 'sector', attributes: ['sector_code', 'sector_name'] }]
         },
         { model: Level, as: 'level', attributes: ['level_name'] },
-        { model: Batch, as: 'batch', attributes: ['batch_code', 'track_type'] }
+        { model: Batch, as: 'batch', attributes: ['batch_code', 'division'] }
       ]
     });
     if (!student) throw new Error('Student not found');
