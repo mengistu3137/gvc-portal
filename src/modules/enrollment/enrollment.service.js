@@ -80,29 +80,8 @@ class EnrollmentService {
     await enrollment.destroy();
     return enrollment;
   }
+  // Add these methods to EnrollmentService class in enrollment.service.js
 
-  async listOfferings(filters = {}) {
-    const { level_id, occupation_id, instructor_id, batch_id, module_id } = filters;
-
-    return ModuleOffering.findAll({
-      where: {
-        ...(batch_id ? { batch_id } : {}),
-        ...(module_id ? { module_id } : {}),
-        ...(instructor_id ? { instructor_id } : {}),
-      },
-      include: [
-        { model: Module, as: 'module', where: occupation_id ? { occupation_id } : undefined },
-        {
-          model: Batch,
-          as: 'batch',
-          where: level_id ? { level_id } : undefined,
-          include: level_id ? [{ model: Level, as: 'level' }] : [],
-        },
-        { model: Instructor, as: 'instructor' },
-      ],
-      order: [['batch_id', 'DESC'], ['module_id', 'ASC']],
-    });
-  }
 
   async calculateStudentGpa(student_pk, level_id) {
     const student = await Student.findByPk(student_pk);

@@ -22,14 +22,70 @@ function App() {
           <ProtectedRoute>
             <AppLayout>
               <Routes>
-                <Route path="/" element={<SectorOccupationManager />} />
-                <Route path="/grading" element={<GradeApprovalDashboard />} />
-                <Route path="/grade-entry" element={<GradeEntry />} />
-                <Route path="/modules" element={<ModuleManager />} />
-                <Route path="/students" element={<StudentListDemo />} />
-                <Route path="/instructors" element={<InstructorManager />} />
-                <Route path="/staff" element={<StaffManager />} />
-                <Route path="/enrollment" element={<EnrollmentManager />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute permission="view_sector">
+                      <SectorOccupationManager />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/grading"
+                  element={
+                    <ProtectedRoute permission="manage_grading">
+                      <GradeApprovalDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/grade-entry"
+                  element={
+                    <ProtectedRoute permission="manage_grading">
+                      <GradeEntry />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/modules"
+                  element={
+                    <ProtectedRoute permission="view_module">
+                      <ModuleManager />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/students"
+                  element={
+                    <ProtectedRoute permission="view_students">
+                      <StudentListDemo />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/instructors"
+                  element={
+                    <ProtectedRoute permission="view_instructors">
+                      <InstructorManager />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/staff"
+                  element={
+                    <ProtectedRoute permission="view_staff">
+                      <StaffManager />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/enrollment"
+                  element={
+                    <ProtectedRoute permission="manage_enrollment">
+                      <EnrollmentManager />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/academic-explorer" element={<AcademicExplorer />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

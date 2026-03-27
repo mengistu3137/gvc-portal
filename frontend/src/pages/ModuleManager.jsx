@@ -32,8 +32,8 @@ export function ModuleManager() {
   const levelCrud = useCrud('academics/levels');
 
   const modulesQuery = moduleCrud.list({ page: 1, limit: 300 });
-  const occupationsQuery = occupationCrud.list({ page: 1, limit: 500 });
-  const levelsQuery = levelCrud.list({ occupation_id: form.occupation_id || undefined }, { enabled: Boolean(form.occupation_id) });
+  const occupationsQuery = occupationCrud.list({ page: 1, limit: 1000 });
+  const levelsQuery = levelCrud.list({ page: 1, limit: 1000 });
 
   const createModule = moduleCrud.create();
   const updateModule = moduleCrud.update();
@@ -224,11 +224,13 @@ console.log("form", form)
                   disabled={!form.occupation_id}
                 >
                   <option value="">Level (optional)</option>
-                  {(levelsQuery.data || []).map((level) => (
-                    <option key={`${level.occupation_id}-${level.level_id}`} value={level.level_id}>
-                      {level.level_name}
-                    </option>
-                  ))}
+                  {(levelsQuery.data || [])
+                    .filter((lvl) => !form.occupation_id || Number(lvl.occupation_id) === Number(form.occupation_id))
+                    .map((level) => (
+                      <option key={`${level.occupation_id}-${level.level_id}`} value={level.level_id}>
+                        {level.level_name || `Level ${level.level_id}`}
+                      </option>
+                    ))}
                 </select>
               </div>
             ) : null}

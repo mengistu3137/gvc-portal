@@ -22,15 +22,18 @@ export function LoginPage() {
     setError('');
 
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const token = response.raw?.token;
-      const user = response.raw?.user || null;
+      const resp = await api.post('/auth/login', { email, password });
+      
+      const token = resp.token;
+      const user = resp.user;
+      const permissions = resp.permissions || [];
+      const roles = resp.roles || [];
 
       if (!token) {
         throw new Error('Login response did not include a token.');
       }
 
-      setAuthSession(token, user);
+      setAuthSession(token, user, permissions, roles);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Authentication failed.');

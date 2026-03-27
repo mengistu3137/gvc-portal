@@ -73,7 +73,9 @@ async login(email, password) {
       first_name: user.person?.first_name || null,
       last_name: user.person?.last_name || null,
       full_name: [user.person?.first_name, user.person?.middle_name, user.person?.last_name].filter(Boolean).join(' ') || null
-    }
+    },
+    roles: userRoles.map(r => r.role_code),
+    permissions: permissions
   };
 }
 

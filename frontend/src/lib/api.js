@@ -61,6 +61,13 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => unwrapPayload(response.data),
+  (response) => {
+    const unwrapped = unwrapPayload(response.data);
+    // Ensure payload is not null if we expect rows inside it for crud
+    if (unwrapped.success && !unwrapped.payload && response.data?.rows) {
+       unwrapped.payload = response.data.rows;
+    }
+    return unwrapped;
+  },
   (error) => Promise.reject(normalizeError(error))
 );

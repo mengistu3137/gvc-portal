@@ -50,22 +50,38 @@ export function DataTable({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Input
-          value={globalFilter}
-          onChange={(event) => setGlobalFilter(event.target.value)}
-          placeholder="Filter records"
-          className="max-w-xs"
-        />
+      <div className="flex items-center gap-3 bg-slate-50/50 p-3 rounded-t-xl border-x border-t border-slate-100">
+        <div className="relative flex-1 max-w-sm">
+          <Input
+            value={globalFilter}
+            onChange={(event) => setGlobalFilter(event.target.value)}
+            placeholder="Search records..."
+            className="pl-10 h-10 rounded-xl border-slate-200"
+          />
+          <svg
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+        </div>
         {isFetching && !isLoading ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-brand-blue">
-            <LoaderCircle size={14} className="animate-spin" />
-            Syncing
+          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-brand-blue bg-blue-50 px-3 py-1 rounded-full border border-blue-100 animate-pulse">
+            <LoaderCircle size={12} className="animate-spin" />
+            Live Sync
           </span>
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-brand-blue/12 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-b-xl border border-slate-100 bg-white shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02),0_2px_4px_-1px_rgba(0,0,0,0.01)]">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

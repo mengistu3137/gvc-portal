@@ -10,7 +10,7 @@ import { api } from '../lib/api';
 
 export function GradeEntry() {
   const studentsCrud = useCrud('students');
-  const offeringsCrud = useCrud('enrollment/offerings');
+  const offeringsCrud = useCrud('offerings');
 
   const [form, setForm] = useState({
     student_pk: '',
