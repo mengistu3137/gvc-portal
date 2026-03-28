@@ -6,16 +6,21 @@ import { EnrollmentManager } from './pages/EnrollmentManager';
 import { GradeApprovalDashboard } from './pages/GradeApprovalDashboard';
 import { GradeEntry } from './pages/GradeEntry';
 import { InstructorManager } from './pages/InstructorManager';
-import { LoginPage } from './pages/LoginPage';
+import { LoginPage } from './pages/auth/LoginPage';
 import { SectorOccupationManager } from './pages/SectorOccupationManager';
 import { ModuleManager } from './pages/ModuleManager';
 import { StaffManager } from './pages/StaffManager';
 import { StudentListDemo } from './pages/StudentListDemo';
+import { ForgotPassword } from './pages/auth/ForgotPassword';
+import { ResetPassword } from './pages/auth/ResetPassword';
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+   <Route path="/forgot-password" element={<ForgotPassword />} />
+      {/* Added :token parameter here to match your backend logic */}
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/*"
         element={
@@ -88,9 +93,11 @@ function App() {
                 />
                 <Route path="/academic-explorer" element={<AcademicExplorer />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
+               
               </Routes>
             </AppLayout>
           </ProtectedRoute>
+          
         }
       />
     </Routes>

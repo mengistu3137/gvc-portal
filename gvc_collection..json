@@ -100,6 +100,40 @@
           "response": []
         },
         {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gvc.edu\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/forgot", "host": ["{{baseUrl}}"], "path": ["auth", "forgot"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password (token)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"newStrongPass123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/forget/:token", "host": ["{{baseUrl}}"], "path": ["auth", "forget", ":token"] }
+          },
+          "response": []
+        },
+        {
           "name": "Get Users",
           "request": {
             "method": "GET",

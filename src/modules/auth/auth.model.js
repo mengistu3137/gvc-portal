@@ -21,7 +21,12 @@ UserAccount.init({
   hash_algorithm: { type: DataTypes.ENUM('BCRYPT', 'ARGON2ID'), defaultValue: 'ARGON2ID' },
   status: { type: DataTypes.ENUM('ACTIVE', 'LOCKED', 'DISABLED'), defaultValue: 'ACTIVE' },
   must_change_password: { type: DataTypes.BOOLEAN, defaultValue: false },
-  last_login_at: { type: DataTypes.DATE }
+  last_login_at: { type: DataTypes.DATE },
+
+  // Password reset control fields
+  reset_token_hash: { type: DataTypes.STRING(255), allowNull: true },
+  reset_token_expires_at: { type: DataTypes.DATE, allowNull: true },
+  reset_token_sent_at: { type: DataTypes.DATE, allowNull: true }
 }, { 
   sequelize, 
   modelName: 'user_account', 

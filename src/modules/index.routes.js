@@ -33,12 +33,6 @@ router.use('/enrollment', enrollmentRoutes);
 
 router.use('/students', studentRoutes);
 
-// Curriculum endpoints: /api/curriculum/modules, etc.
-// router.use('/curriculum', curriculumRoutes);
 
-// Error handling for 404 routes within /api
-// router.use('/*', (req, res) => {
-//   res.status(404).json({ success: false, message: 'API Endpoint not found' });
-// });
 
 export default router;

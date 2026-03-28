@@ -28,6 +28,7 @@
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^6.9.15",
     "multer": "^2.1.1",
     "mysql2": "^3.18.2",
     "nodeman": "^1.1.2",

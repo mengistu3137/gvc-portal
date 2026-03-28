@@ -49,7 +49,7 @@ export function AppLayout({ children }) {
     <div className="min-h-screen bg-brand-background">
       <aside className="fixed inset-y-0 left-0 z-30 w-20 border-r border-brand-blue/40 bg-brand-blue text-white md:w-64">
        <div className="flex items-center gap-2">
-  <img src="/image.png" className="h-8 w-8" />
+  <img src="/gvc_logo.png" className="h-8 w-8 rounded-full" />
   <div className="leading-tight">
     <p className="text-sm font-semibold">Grand Valley</p>
     <p className="text-[11px] text-white/75">College Portal</p>
