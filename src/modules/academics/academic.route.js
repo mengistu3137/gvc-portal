@@ -27,6 +27,7 @@ router.route('/sectors/:id')
   .delete(auth('manage_sector'), deleteSector);
 
 // --- OCCUPATION ROUTES ---
+router.get('/occupations/public', getOccupations);
 router.route('/occupations')
   .post(auth('manage_occupation'), createOccupation)
   .get(auth('view_occupation'), getOccupations);

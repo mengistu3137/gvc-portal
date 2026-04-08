@@ -50,6 +50,7 @@ export function GradeApprovalDashboard() {
       method: 'put',
     }, {
       onSuccess: () => {
+        setStatusNote('');
         setSelectedSubmission((current) => {
           if (!current || current.submission_id !== row.submission_id) {
             return current;

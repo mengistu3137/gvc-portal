@@ -7,6 +7,28 @@ export const login = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await AuthService.requestPasswordReset(req.body.email);
+    res.json({ success: true, ...result });
+  } catch (error) { next(error); }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    // Accept token from path, query, or body for flexibility with SPA frontends
+    const token = req.params.token || req.query.token || req.body.token;
+    const newPassword = req.body?.password || req.body?.new_password || req.body?.newPassword;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    }
+
+    const result = await AuthService.resetPasswordWithToken(token, newPassword);
+    res.json({ success: true, ...result });
+  } catch (error) { next(error); }
+};
+
 export const getUsers = async (req, res, next) => {
   try {
     const data = await AuthService.getAllUsers(req.query);

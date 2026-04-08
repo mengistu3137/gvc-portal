@@ -8,7 +8,9 @@
     "dev": "nodemon app.js",
     "query": "nodemon query_inspector.js",
     "migrate": "node scripts/migrate-all-tables.mjs",
-    "seed": "node src/config/seed.js",
+
+      "seed": "node src/config/index.js",
+    "seed:truncate": "node src/config/index.js --truncate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:e2e": "node scripts/e2e.integration.mjs"
   },
@@ -19,12 +21,14 @@
   "dependencies": {
     "argon2": "^0.44.0",
     "axios": "^1.13.6",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^6.9.15",
     "multer": "^2.1.1",
     "mysql2": "^3.18.2",
     "nodeman": "^1.1.2",

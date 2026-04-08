@@ -36,9 +36,3 @@ export const deleteEnrollment = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-export const listOfferings = async (req, res, next) => {
-  try {
-    const rows = await EnrollmentService.listOfferings(req.query, req.user);
-    res.json({ success: true, count: rows.length, rows });
-  } catch (error) { next(error); }
-};

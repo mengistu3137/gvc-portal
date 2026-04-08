@@ -21,7 +21,6 @@ const defaultForm = {
 };
 
 export function StudentListDemo() {
-  const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -33,9 +32,11 @@ export function StudentListDemo() {
 
   const studentCrud = useCrud('students');
   const batchesCrud = useCrud('academics/batches');
+  const levelCrud = useCrud('academics/levels');
 
-  const studentsQuery = studentCrud.list({ page: 1, limit: 200 });
-  const batchesQuery = batchesCrud.list({ page: 1, limit: 500 });
+  const studentsQuery = studentCrud.list({ page: 1, limit: 1000 });
+  const batchesQuery = batchesCrud.list({ page: 1, limit: 1000 });
+  const levelQuery = levelCrud.list({ page: 1, limit: 1000 });
 
   const createStudent = studentCrud.create();
   const updateStudent = studentCrud.update();
@@ -43,13 +44,27 @@ export function StudentListDemo() {
 
   const isMutating = createStudent.isPending || updateStudent.isPending;
 
+  const [form, setForm] = useState({
+    ...defaultForm,
+    level_id: '',
+    occupation_id: ''
+  });
+
   const onChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: '' }));
+    
+    if (field === 'occupation_id') {
+      setForm(prev => ({ ...prev, level_id: '' }));
+    }
   };
 
   const resetForm = () => {
-    setForm(defaultForm);
+    setForm({
+      ...defaultForm,
+      level_id: '',
+      occupation_id: ''
+    });
     setEditingId(null);
     setErrors({});
   };
@@ -58,38 +73,18 @@ export function StudentListDemo() {
     event.preventDefault();
     if (isMutating) return;
 
-    const nextErrors = {
-      first_name: form.first_name.trim() ? '' : 'First name is required',
-      last_name: form.last_name.trim() ? '' : 'Last name is required',
-      batch_id: form.batch_id ? '' : 'Batch is required',
-      gender: form.gender ? '' : 'Gender is required',
-    };
-
-    const hasError = Object.values(nextErrors).some(Boolean);
-    setErrors(nextErrors);
-    if (hasError) return;
-
     const payload = {
       ...form,
-      batch_id: Number(form.batch_id),
-      gender: form.gender,
+      batch_id: form.batch_id ? Number(form.batch_id) : null,
+      level_id: form.level_id ? Number(form.level_id) : null,
+      occupation_id: form.occupation_id ? Number(form.occupation_id) : null
     };
 
-    console.log('Submitting student payload', payload);
-
     if (editingId) {
-      updateStudent.mutate(
-        { id: editingId, payload, method: 'put' },
-        {
-          onSuccess: () => resetForm(),
-        }
-      );
-      return;
+      updateStudent.mutate({ id: editingId, payload, method: 'put' }, { onSuccess: resetForm });
+    } else {
+      createStudent.mutate(payload, { onSuccess: resetForm });
     }
-
-    createStudent.mutate(payload, {
-      onSuccess: () => resetForm(),
-    });
   };
 
   const requestDeleteSingle = (id) => {
@@ -163,6 +158,8 @@ export function StudentListDemo() {
                   phone: row.original.phone || '',
                   gender: row.original.gender || '',
                   batch_id: row.original.batch_id || '',
+                  level_id: row.original.level_id || '',
+                  occupation_id: row.original.occupation_id || '',
                   admission_date: row.original.admission_date || '',
                   status: row.original.status || 'ACTIVE',
                 });

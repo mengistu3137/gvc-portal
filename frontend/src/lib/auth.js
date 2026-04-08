@@ -5,9 +5,9 @@ export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-export function setAuthSession(token, user) {
+export function setAuthSession(token, user, permissions = [], roles = []) {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user || null));
+  localStorage.setItem(USER_KEY, JSON.stringify({ ...user, permissions, roles }));
 }
 
 export function clearAuthSession() {
@@ -24,6 +24,18 @@ export function getAuthUser() {
   } catch {
     return null;
   }
+}
+
+export function hasPermission(permissionCode) {
+  const user = getAuthUser();
+  if (!user || !user.permissions) return false;
+  return user.permissions.includes(permissionCode);
+}
+
+export function hasRole(roleCode) {
+  const user = getAuthUser();
+  if (!user || !user.roles) return false;
+  return user.roles.includes(roleCode);
 }
 
 export function isAuthenticated() {

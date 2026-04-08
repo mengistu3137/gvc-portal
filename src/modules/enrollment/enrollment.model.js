@@ -37,7 +37,8 @@ ModuleOffering.init({
 
   capacity: DataTypes.INTEGER
 
-}, {
+},
+  {
   sequelize,
   tableName: 'module_offerings',
   underscored: true,

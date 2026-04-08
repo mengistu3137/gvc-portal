@@ -7,21 +7,23 @@ import {
   UserCircle2,
   UserRound,
   UsersRound,
+  Boxes,
+  FileBadge2,
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuthSession, getAuthUser } from '../../lib/auth';
+import { clearAuthSession, getAuthUser, hasPermission } from '../../lib/auth';
 import { cn } from '../../lib/utils';
 
 const navItems = [
-  { label: 'Sectors', icon: LayoutDashboard, to: '/' },
-  { label: 'Modules', icon: BookOpenCheck, to: '/modules' },
-  { label: 'Instructors', icon: UserRound, to: '/instructors' },
-  { label: 'Staff', icon: UsersRound, to: '/staff' },
-  { label: 'Grade Entry', icon: BookOpenCheck, to: '/grade-entry' },
-  { label: 'Grading', icon: ShieldCheck, to: '/grading' },
-  { label: 'Students', icon: GraduationCap, to: '/students' },
-  { label: 'Enrollment', icon: ShieldCheck, to: '/enrollment' },
-  { label: 'Explorer', icon: Bell, to: '/academic-explorer' },
+  { label: 'Dashboard', icon: LayoutDashboard, to: '/', permission: 'view_dashboard' },
+  { label: 'Sectors & Occupations', icon: Boxes, to: '/academic-explorer', permission: 'view_sector' },
+  { label: 'Modules', icon: BookOpenCheck, to: '/modules', permission: 'view_module' },
+  { label: 'Instructors', icon: UserRound, to: '/instructors', permission: 'view_instructor' },
+  { label: 'Staff', icon: UsersRound, to: '/staff', permission: 'view_staff' },
+  { label: 'Enrollment', icon: ShieldCheck, to: '/enrollment', permission: 'manage_enrollment' },
+  { label: 'Grade Entry', icon: FileBadge2, to: '/grade-entry', permission: 'manage_grading' },
+  { label: 'Grade Approvals', icon: GraduationCap, to: '/grading', permission: 'manage_grading' },
+  { label: 'Students', icon: GraduationCap, to: '/students', permission: 'view_student' },
 ];
 
 function buildBreadcrumbs(pathname) {
@@ -47,32 +49,34 @@ export function AppLayout({ children }) {
     <div className="min-h-screen bg-brand-background">
       <aside className="fixed inset-y-0 left-0 z-30 w-20 border-r border-brand-blue/40 bg-brand-blue text-white md:w-64">
        <div className="flex items-center gap-2">
-  <img src="/image.png" className="h-8 w-8" />
+  <img src="/gvc_logo.png" className="h-8 w-8 rounded-full" />
   <div className="leading-tight">
     <p className="text-sm font-semibold">Grand Valley</p>
     <p className="text-[11px] text-white/75">College Portal</p>
   </div>
 </div>
         <nav className="mt-4 flex flex-col gap-1 px-2 md:px-4">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              aria-label={item.label}
-              className={({ isActive }) =>
-                cn(
-                  'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/80 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue focus-visible:ring-white',
-                  'hover:bg-white/10 hover:text-white',
-                  isActive && 'bg-white/15 text-white shadow-[0_6px_24px_rgba(0,0,0,0.16)] ring-1 ring-white/10'
-                )
-              }
-              title={item.label}
-            >
-              <item.icon size={18} className="shrink-0" />
-              <span className="hidden md:inline">{item.label}</span>
-            </NavLink>
-          ))}
+          {navItems
+            .filter((item) => !item.permission || hasPermission(item.permission))
+            .map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                aria-label={item.label}
+                className={({ isActive }) =>
+                  cn(
+                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/80 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue focus-visible:ring-white',
+                    'hover:bg-white/10 hover:text-white',
+                    isActive && 'bg-white/15 text-white shadow-[0_6px_24px_rgba(0,0,0,0.16)] ring-1 ring-white/10'
+                  )
+                }
+                title={item.label}
+              >
+                <item.icon size={18} className="shrink-0" />
+                <span className="hidden md:inline">{item.label}</span>
+              </NavLink>
+            ))}
         </nav>
       </aside>
 

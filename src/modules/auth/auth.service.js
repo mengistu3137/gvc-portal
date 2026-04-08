@@ -1,6 +1,8 @@
 import { Op } from 'sequelize';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import sequelize from '../../config/database.js';
 import { UserAccount, Role, Permission } from './auth.model.js';
 import { Person } from '../persons/person.model.js';
@@ -21,9 +23,68 @@ const toLegacyUserDto = (user) => {
   };
 };
 
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+let mailTransporter;
+
+const buildResetEmailHtml = ({ fullName, resetUrl, expiresMinutes = 60 }) => `
+  <div style="font-family: Arial, sans-serif; background:#f6f7fb; padding:32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:640px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 12px 30px rgba(0,0,0,0.06);">
+      <tr>
+        <td style="background:#0a4da3; color:#fff; padding:24px 28px;">
+          <div style="font-size:18px; font-weight:700;">Grand Valley College</div>
+          <div style="font-size:13px; opacity:0.9;">Secure password reset</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px 28px 6px; color:#111827;">
+          <div style="font-size:16px; font-weight:600; margin-bottom:8px;">Hello${fullName ? ` ${fullName}` : ''},</div>
+          <div style="font-size:14px; line-height:1.6; color:#374151;">We received a request to reset your GVC Portal password. Use the button below to set a new password. This link will expire in ${expiresMinutes} minutes.</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:18px 28px 12px; text-align:center;">
+          <a href="${resetUrl}" style="display:inline-block; background:#0a4da3; color:#ffffff; text-decoration:none; padding:12px 22px; border-radius:8px; font-weight:600;">Reset your password</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 28px 22px; color:#4b5563; font-size:13px; line-height:1.6;">
+          If the button does not work, copy and paste this URL into your browser:<br/>
+          <span style="word-break:break-all; color:#0a4da3;">${resetUrl}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 28px 28px; font-size:12px; color:#9ca3af;">If you did not request this change, you can safely ignore this email. Your password will remain unchanged.</td>
+      </tr>
+    </table>
+  </div>
+`;
+
+const getMailTransporter = () => {
+  console.log('Initializing mail transporter with config:', {
+    host: process.env.BREVO_SMTP_HOST || 'smtp.gmail.com',
+    user:  process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASS
+  });
+  if (mailTransporter) return mailTransporter;
+
+  // Gmail SMTP requires 2-Step Verification enabled and a 16-character App Password generated from Google Account settings
+  mailTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASS
+    },
+    connectionTimeout: 10000
+  });
+
+  return mailTransporter;
+};
+
 class AuthService {
   // --- AUTH OPERATIONS ---
-async login(email, password) {
+  async login(email, password) {
   const user = await UserAccount.findOne({
     where: { email, status: 'ACTIVE' },
     include: [
@@ -73,9 +134,88 @@ async login(email, password) {
       first_name: user.person?.first_name || null,
       last_name: user.person?.last_name || null,
       full_name: [user.person?.first_name, user.person?.middle_name, user.person?.last_name].filter(Boolean).join(' ') || null
-    }
+    },
+    roles: userRoles.map(r => r.role_code),
+    permissions: permissions
   };
 }
+
+  async requestPasswordReset(email) {
+    if (!email) throw new Error('Email is required');
+
+    const user = await UserAccount.findOne({
+      where: { email },
+      include: [{ model: Person, as: 'person' }]
+    });
+
+    if (!user) {
+      // Requirement: check existence; returning explicit error keeps API behavior clear to callers
+      throw new Error('User not found');
+    }
+
+    const rawToken = crypto.randomBytes(48).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+    await user.update({
+      reset_token_hash: tokenHash,
+      reset_token_expires_at: expiresAt,
+      reset_token_sent_at: new Date()
+    });
+
+    const baseUrl = process.env.PASSWORD_RESET_URL || process.env.FRONTEND_URL || 'https://portal.gvc.edu/reset-password';
+    const resetUrl = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}token=${rawToken}`;
+
+    const transporter = getMailTransporter();
+    await transporter.sendMail({
+      to: user.email,
+      from: process.env.GMAIL_FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@gvc.edu',
+      subject: 'GVC Portal password reset',
+      html: buildResetEmailHtml({
+        fullName: [user.person?.first_name, user.person?.last_name].filter(Boolean).join(' '),
+        resetUrl,
+        expiresMinutes: Math.round(RESET_TOKEN_TTL_MS / (60 * 1000))
+      })
+    });
+
+    return { message: 'Password reset email sent' };
+  }
+
+  async resetPasswordWithToken(token, newPassword) {
+    if (!token || !newPassword) throw new Error('Token and new password are required');
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    const user = await UserAccount.findOne({
+      where: {
+        reset_token_hash: tokenHash,
+        reset_token_expires_at: { [Op.gt]: now }
+      }
+    });
+
+    if (!user) throw new Error('Invalid or expired token');
+
+    const t = await sequelize.transaction();
+    try {
+      const hashedPassword = await argon2.hash(newPassword, { type: argon2.argon2id });
+
+      await user.update({
+        password_hash: hashedPassword,
+        hash_algorithm: 'ARGON2ID',
+        must_change_password: false,
+        reset_token_hash: null,
+        reset_token_expires_at: null,
+        reset_token_sent_at: null
+      }, { transaction: t });
+
+      await t.commit();
+      return { message: 'Password updated successfully' };
+    } catch (error) {
+      await t.rollback();
+      throw error;
+    }
+  }
 
   // --- CRUD OPERATIONS WITH PFSS ---
   async getAllUsers(query) {

@@ -29,13 +29,14 @@ export function EnrollmentManager() {
   const [errors, setErrors] = useState({});
 
   const studentsCrud = useCrud('students');
+  const sectorsCrud = useCrud('academics/sectors');
   const levelsCrud = useCrud('academics/levels');
-  const offeringsCrud = useCrud('enrollment/offerings');
+  const offeringsCrud = useCrud('offerings');
   const enrollmentCrud = useCrud('enrollment');
 
   const studentsQuery = studentsCrud.list({ page: 1, limit: 300 });
-  const levelsQuery = levelsCrud.list({ page: 1, limit: 300 });
-  const offeringsQuery = offeringsCrud.list({ page: 1, limit: 500 });
+  const levelsQuery = levelsCrud.list({ page: 1, limit: 1000 });
+  const offeringsQuery = offeringsCrud.list({ page: 1, limit: 1000 });
   const enrollmentsQuery = enrollmentCrud.list({ page: 1, limit: 300 });
 
   const createEnrollment = enrollmentCrud.create();
@@ -121,7 +122,9 @@ export function EnrollmentManager() {
   };
 
   const removeEnrollmentRow = async (enrollmentId) => {
-    await removeEnrollment.mutateAsync(enrollmentId);
+    if (window.confirm('Are you sure you want to remove this enrollment?')) {
+      await removeEnrollment.mutateAsync(enrollmentId);
+    }
   };
 
   const setEditingRow = (row) => {
@@ -132,7 +135,6 @@ export function EnrollmentManager() {
       level_id: String(row.level_id || row.offering?.batch?.level_id || ''),
       status: row.status || 'ENROLLED',
     });
-    toast.success(`Editing enrollment #${row.enrollment_id}`);
   };
 
   const enrollmentColumns = useMemo(
