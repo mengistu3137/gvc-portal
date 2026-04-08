@@ -10,7 +10,9 @@ class PermissionSeeder {
     return {
       auth: [
         { permission_code: 'view_users', permission_name: 'View Users' },
-        { permission_code: 'manage_users', permission_name: 'Manage Users' }
+        { permission_code: 'manage_users', permission_name: 'Manage Users' },
+        {permission_code:'manage_announcement', permission_name: 'Manage Announcements'},
+        {permission_code:'view_announcement', permission_name: 'View Announcements'}
       ],
       academics: [
         { permission_code: 'view_sector', permission_name: 'View Sectors' },

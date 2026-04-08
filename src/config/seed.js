@@ -310,7 +310,9 @@ class Seeder {
         { permission_code: 'view_staff', permission_name: 'View Staff', module_scope: 'staff' },
         { permission_code: 'manage_staff', permission_name: 'Manage Staff', module_scope: 'staff' },
         { permission_code: 'view_student', permission_name: 'View Students', module_scope: 'students' },
-        { permission_code: 'manage_student', permission_name: 'Manage Students', module_scope: 'students' }
+        { permission_code: 'manage_student', permission_name: 'Manage Students', module_scope: 'students' },
+        { permission_code: 'manage_announcement', permission_name: 'Manage Announcements', module_scope: 'announcements' },
+        { permission_code: 'view_announcement', permission_name: 'View Announcements', module_scope: 'announcements' }
       ];
       
       for (const data of permissionData) {
