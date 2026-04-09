@@ -15,9 +15,20 @@ UserAccount.init({
     type: DataTypes.STRING(190), 
     unique: true, 
     allowNull: false,
-    validate: { isEmail: true } 
+    set(value) {
+  
+    this.setDataValue('email', value.toLowerCase().trim());
   },
-  password_hash: { type: DataTypes.STRING(255), allowNull: false },
+    validate: {
+      isEmail: true,
+      notEmpty: true,
+      len: [5, 190]
+    } 
+  },
+  password_hash: {
+    type: DataTypes.STRING(255), allowNull: false,
+    validate: { notEmpty: true }
+   },
   hash_algorithm: { type: DataTypes.ENUM('BCRYPT', 'ARGON2ID'), defaultValue: 'ARGON2ID' },
   status: { type: DataTypes.ENUM('ACTIVE', 'LOCKED', 'DISABLED'), defaultValue: 'ACTIVE' },
   must_change_password: { type: DataTypes.BOOLEAN, defaultValue: false },

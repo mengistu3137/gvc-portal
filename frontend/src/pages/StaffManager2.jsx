@@ -18,7 +18,7 @@ const defaultForm = {
   employment_status: 'ACTIVE',
 };
 
-export function StaffManager() {
+export function StaffManager2() {
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);

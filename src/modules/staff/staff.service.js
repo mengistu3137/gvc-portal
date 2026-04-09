@@ -4,6 +4,7 @@ import sequelize from '../../config/database.js';
 import { Staff, StaffIdSequence } from './staff.model.js';
 import { Person } from '../persons/person.model.js';
 import { UserAccount, Role } from '../auth/auth.model.js';
+import { validateEthiopianPhone, validateEmail } from '../../utils/validation.js';
 
 const toStaffDto = (staff) => {
   const row = staff.toJSON();
@@ -31,6 +32,29 @@ const toStaffDto = (staff) => {
 
 class StaffService {
   async createStaff(data) {
+    if (!data.first_name || !data.last_name) {
+    throw new Error('First name and last name are required.');
+  }
+
+if (data.phone && !validateEthiopianPhone(data.phone)) {
+  throw new Error('Invalid phone number. Must follow the +251 format with 9 digits.');
+}
+
+  if (data.email && !validateEmail(data.email)) {
+    throw new Error('Invalid email format.');
+    }
+    
+   // NEW: Check for duplicate Personal Email
+  if (data.email) {
+    const existingPerson = await Person.findOne({ where: { email: data.email } });
+    if (existingPerson) throw new Error('A person with this email already exists.');
+  }
+
+  // NEW: Check for duplicate Account Email
+  if (data.account?.email) {
+    const existingAccount = await UserAccount.findOne({ where: { email: data.account.email } });
+    if (existingAccount) throw new Error('System account email is already taken.');
+  }
     const t = await sequelize.transaction();
     try {
       const currentYear = new Date().getFullYear();
@@ -205,10 +229,27 @@ class StaffService {
   }
 
   async updateStaff(id, data) {
+    if (data.phone && !validateEthiopianPhone(data.phone)) {
+    throw new Error('Invalid Ethiopian phone number.');
+  }
+  if (data.email && !validateEmail(data.email)) {
+    throw new Error('Invalid email format.');
+  }
     const t = await sequelize.transaction();
     try {
       const staff = await Staff.findByPk(id, { transaction: t });
       if (!staff) throw new Error('Staff not found');
+      
+      if (data.email) {
+      const emailTaken = await Person.findOne({ 
+        where: { 
+          email: data.email, 
+          person_id: { [Op.ne]: staff.person_id } // "Not Equal" to current person
+        },
+        transaction: t 
+      });
+      if (emailTaken) throw new Error('This email is already assigned to another person.');
+    }
 
       const personUpdates = {};
       ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'phone', 'email', 'photo_url']
@@ -232,6 +273,35 @@ class StaffService {
         if (!person) throw new Error('Person identity not found for staff');
         await person.update(personUpdates, { transaction: t });
       }
+
+// Check if the update request includes a command to create a new account
+if (data.create_account && data.account) {
+  // 1. Hash the password
+  const password_hash = await argon2.hash(data.account.password, { type: argon2.argon2id });
+
+  // 2. Safety check: ensure they don't already have an account
+  const existingAccount = await UserAccount.findOne({ 
+    where: { person_id: staff.person_id },
+    transaction: t 
+  });
+
+  if (!existingAccount) {
+    // 3. Create the account tied to the staff's person_id
+    const newUser = await UserAccount.create({
+      person_id: staff.person_id,
+      email: data.account.email,
+      password_hash,
+      hash_algorithm: 'ARGON2ID',
+      status: 'ACTIVE'
+    }, { transaction: t });
+
+    // 4. Assign default roles if provided
+    if (data.account.role_codes) {
+      const roles = await Role.findAll({ where: { role_code: data.account.role_codes }, transaction: t });
+      await newUser.setRoles(roles, { transaction: t });
+    }
+  }
+}
 
       await t.commit();
       return this.getStaffById(id);

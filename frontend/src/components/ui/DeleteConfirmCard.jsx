@@ -20,9 +20,9 @@ export function DeleteConfirmCard({
       <CardHeader>
         <CardTitle className="text-base text-red-800">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 items-center">
         <p className="text-sm text-red-700">{description}</p>
-        <div className="flex gap-2">
+        <div className="flex gap-4 justify-center">
           <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </Button>

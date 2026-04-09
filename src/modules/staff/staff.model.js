@@ -35,15 +35,21 @@ Staff.init({
     type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
     unique: true,
+  
+    
     references: { model: 'persons', key: 'person_id' }
   },
   staff_code: {
     type: DataTypes.STRING(30),
     allowNull: false,
-    unique: true
+    unique: true,
+    validate: {
+      notEmpty: true,
+      len: [4, 30]
+    }
   },
   staff_type: {
-    type: DataTypes.ENUM('FINANCE', 'REGISTRAR', 'QA', 'ADMIN'),
+    type: DataTypes.ENUM('STAFF', 'REGISTRAR', 'QA','ADMIN'),
     allowNull: false
   },
   employment_status: {

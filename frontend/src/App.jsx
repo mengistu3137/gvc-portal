@@ -9,7 +9,7 @@ import { InstructorManager } from './pages/InstructorManager';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SectorOccupationManager } from './pages/SectorOccupationManager';
 import { ModuleManager } from './pages/ModuleManager';
-import { StaffManager } from './pages/StaffManager';
+import { StaffManager } from './pages/staff/StaffManager';
 import { StudentListDemo } from './pages/StudentListDemo';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { ResetPassword } from './pages/auth/ResetPassword';

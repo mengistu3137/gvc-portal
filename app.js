@@ -61,33 +61,24 @@ const PORT = process.env.PORT || 3000;
 
 const syncDatabase = async () => {
   try {
-    // First, just authenticate to check connection
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
     
-    // Check if we should sync the database (only in development and when explicitly set)
-    const shouldSync = process.env.NODE_ENV === 'development' && process.env.DB_SYNC === 'true';
-    const shouldForceSync = process.env.NODE_ENV === 'development' && process.env.DB_FORCE_SYNC === 'true';
-    
-    if (shouldForceSync) {
-      // WARNING: This will drop all tables and recreate them
-      console.log('⚠️ WARNING: Force syncing database - this will drop all tables!');
+    const isDev = process.env.NODE_ENV === 'development';
+    const shouldForce = isDev && process.env.DB_FORCE_SYNC === 'true';
+    const shouldAlter = isDev && process.env.DB_SYNC_ALTER === 'true'; // Match your .env name
+
+    if (shouldForce) {
       await sequelize.sync({ force: true });
-      console.log('✅ Database force synced successfully (all tables recreated).');
-    } else if (shouldSync) {
-      // Normal sync without alter - this won't try to modify existing tables
-      await sequelize.sync();
-      console.log('✅ Database synchronized successfully (no schema changes).');
+      console.log('⚠️ Tables recreated (Data lost).');
+    } else if (shouldAlter) {
+      // THIS is what you are missing
+      await sequelize.sync({ alter: true }); 
+      console.log('✅ Database schema updated (Data preserved).');
     } else {
-      console.log('ℹ️ Database schema sync skipped. Using existing tables.');
-      console.log('   To sync, set DB_SYNC=true in .env file');
-      console.log('   To force recreate tables, set DB_FORCE_SYNC=true in .env file');
+      console.log('ℹ️ Sync skipped.');
     }
-    
-    return true;
   } catch (error) {
-    console.error('❌ Database initialization error:', error);
-    throw error;
+    console.error('❌ Sync failed:', error);
   }
 };
 
