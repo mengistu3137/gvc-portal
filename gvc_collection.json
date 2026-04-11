@@ -194,6 +194,167 @@
       ]
     },
     {
+  "name": "Role & Permission Management (New)",
+  "item": [
+    {
+      "name": "Create Role",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role_code\": \"DEPT_HEAD\",\n  \"role_name\": \"Department Head\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Roles",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Role By ID",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles/{{roleId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles", "{{roleId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Role",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role_name\": \"Senior Department Head\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles/{{roleId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles", "{{roleId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Role",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles/{{roleId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles", "{{roleId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assign Permissions to Role",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"permission_codes\": [\"view_instructors\", \"manage_instructors\", \"view_students\"]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles/{{roleId}}/permissions",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles", "{{roleId}}", "permissions"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Unassign Permissions from Role",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"permission_codes\": [\"view_instructors\"]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/roles/{{roleId}}/permissions/unassign",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "roles", "{{roleId}}", "permissions", "unassign"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assign Roles to User Account",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role_ids\": [1]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/accounts/{{userId}}/roles",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "accounts", "{{userId}}", "roles"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Unassign Roles from User Account",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role_ids\": [1]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/accounts/{{userId}}/roles/unassign",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "accounts", "{{userId}}", "roles", "unassign"]
+        }
+      },
+      "response": []
+    }
+  ]
+},
+    {
       "name": "Academics",
       "item": [
         {

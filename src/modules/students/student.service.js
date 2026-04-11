@@ -2,29 +2,28 @@ import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import { Student, StudentIdSequence } from './student.model.js';
 import { Occupation, Batch, Level, AcademicYear, Sector } from '../academics/academic.model.js';
-import { Person } from '../persons/person.model.js';
+import { User } from '../users/users.model.js';
 import { UserAccount } from '../auth/auth.model.js';
 import { mapRowsByFieldMapping, parseSpreadsheetRowsFromFile } from '../../utils/spreadsheetImport.js';
 
 const toLegacyStudentDto = (student) => {
   const row = student.toJSON();
-  const person = row.person || {};
-  const full_name = [person.first_name, person.middle_name, person.last_name]
+  const profile = row.user || {};
+  const full_name = [profile.first_name, profile.middle_name, profile.last_name]
     .filter(Boolean)
     .join(' ');
 
   return {
     ...row,
-    first_name: person.first_name || null,
-    middle_name: person.middle_name || null,
-    last_name: person.last_name || null,
+    first_name: profile.first_name || null,
+    middle_name: profile.middle_name || null,
+    last_name: profile.last_name || null,
     full_name: full_name || null,
-    gender: person.gender || null,
-    date_of_birth: person.date_of_birth || null,
-    phone: person.phone || null,
-    email: person.email || null,
-    photo_url: person.photo_url || null,
-    account_email: person.account?.email || null
+    gender: profile.gender || null,
+    date_of_birth: profile.date_of_birth || null,
+    phone: profile.phone || null,
+    photo_url: profile.photo_url || null,
+    account_email: profile.account?.email || null
     ,
     sector_code: row.occupation?.sector?.sector_code || null,
     sector_name: row.occupation?.sector?.sector_name || null
@@ -33,19 +32,18 @@ const toLegacyStudentDto = (student) => {
 
 class StudentService {
   async createStudentInTransaction(data, t) {
-    const personPayload = {
+    const userPayload = {
       first_name: data.first_name,
       middle_name: data.middle_name || null,
       last_name: data.last_name,
       gender: data.gender || null,
       date_of_birth: data.date_of_birth || null,
       phone: data.phone || null,
-      email: data.email || null,
       photo_url: data.photo_url || null
     };
 
-    if (!personPayload.first_name || !personPayload.last_name) {
-      throw new Error('first_name and last_name are required to create student person identity.');
+    if (!userPayload.first_name || !userPayload.last_name) {
+      throw new Error('first_name and last_name are required to create student identity.');
     }
 
     const batch = await Batch.findByPk(data.batch_id, {
@@ -83,10 +81,10 @@ class StudentService {
 
     const formattedId = `GVC${occCode}${trackChar}${nextSeq.toString().padStart(3, '0')}/${shortYear}`;
 
-    const person = await Person.create(personPayload, { transaction: t });
+    const profile = await User.create(userPayload, { transaction: t });
 
     const newStudent = await Student.create({
-      person_id: person.person_id,
+      user_id: profile.user_id,
       student_id: formattedId,
       occupation_id: batch.occupation_id,
       level_id: batch.level_id,
@@ -112,7 +110,7 @@ class StudentService {
       await t.commit();
       const created = await Student.findByPk(studentPk, {
         include: [
-          { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+          { model: User, as: 'user', include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }] },
           {
             model: Occupation,
             as: 'occupation',
@@ -149,7 +147,7 @@ class StudentService {
       const created = await Student.findAll({
         where: { student_pk: { [Op.in]: createdIds } },
         include: [
-          { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+          { model: User, as: 'user', include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }] },
           {
             model: Occupation,
             as: 'occupation',
@@ -187,8 +185,8 @@ class StudentService {
       [Op.and]: [
         search ? {
           [Op.or]: [
-            { '$person.first_name$': { [Op.like]: `%${search}%` } },
-            { '$person.last_name$': { [Op.like]: `%${search}%` } },
+            { '$user.first_name$': { [Op.like]: `%${search}%` } },
+            { '$user.last_name$': { [Op.like]: `%${search}%` } },
             { student_id: { [Op.like]: `%${search}%` } }
           ]
         } : {},
@@ -202,10 +200,10 @@ class StudentService {
       where: whereClause,
       include: [
         {
-          model: Person,
-          as: 'person',
+          model: User,
+          as: 'user',
           required: false,
-          include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }]
+          include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }]
         },
         {
           model: Occupation,
@@ -231,7 +229,7 @@ class StudentService {
   async getStudentById(id) {
     const student = await Student.findByPk(id, {
       include: [
-        { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+        { model: User, as: 'user', include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }] },
         {
           model: Occupation,
           as: 'occupation',
@@ -252,25 +250,25 @@ class StudentService {
       const student = await Student.findByPk(id, { transaction: t });
       if (!student) throw new Error('Student not found');
 
-      const personUpdates = {};
-      ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'phone', 'email', 'photo_url']
+      const userUpdates = {};
+      ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'phone', 'photo_url']
         .forEach((field) => {
           if (Object.prototype.hasOwnProperty.call(data, field)) {
-            personUpdates[field] = data[field];
+            userUpdates[field] = data[field];
           }
         });
 
       const studentUpdates = { ...data };
-      Object.keys(personUpdates).forEach((k) => delete studentUpdates[k]);
+      Object.keys(userUpdates).forEach((k) => delete studentUpdates[k]);
 
       if (Object.keys(studentUpdates).length > 0) {
         await student.update(studentUpdates, { transaction: t });
       }
 
-      if (Object.keys(personUpdates).length > 0) {
-        const person = await Person.findByPk(student.person_id, { transaction: t });
-        if (!person) throw new Error('Person identity not found for student');
-        await person.update(personUpdates, { transaction: t });
+      if (Object.keys(userUpdates).length > 0) {
+        const profile = await User.findByPk(student.user_id, { transaction: t });
+        if (!profile) throw new Error('User identity not found for student');
+        await profile.update(userUpdates, { transaction: t });
       }
 
       await t.commit();
@@ -291,10 +289,10 @@ class StudentService {
     const student = await Student.findByPk(id);
     if (!student) throw new Error('Student not found');
 
-    const person = await Person.findByPk(student.person_id);
-    if (!person) throw new Error('Person identity not found for student');
+    const profile = await User.findByPk(student.user_id);
+    if (!profile) throw new Error('User identity not found for student');
 
-    await person.update({ photo_url: photoUrl });
+    await profile.update({ photo_url: photoUrl });
     return this.getStudentById(id);
   }
 }

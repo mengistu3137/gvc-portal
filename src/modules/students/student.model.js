@@ -1,7 +1,7 @@
   import { DataTypes, Model } from 'sequelize';
   import sequelize from '../../config/database.js';
   import { Occupation, Level, Batch } from '../academics/academic.model.js';
-  import { Person } from '../persons/person.model.js';
+  import { User } from '../users/users.model.js';
 
   export class StudentIdSequence extends Model {}
   StudentIdSequence.init({
@@ -12,11 +12,11 @@
   export class Student extends Model {}
   Student.init({
     student_pk: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-    person_id: {
+    user_id: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
       unique: true,
-      references: { model: 'persons', key: 'person_id' }
+      references: { model: 'users', key: 'user_id' }
     },
     student_id: { type: DataTypes.STRING(30),unique: true, allowNull: false },
     reg_year: { type: DataTypes.SMALLINT.UNSIGNED, allowNull: false },
@@ -38,8 +38,8 @@
   });
 
   // Relationships based on your Academic Model
-  Person.hasOne(Student, { foreignKey: 'person_id', as: 'student_profile' });
-  Student.belongsTo(Person, { foreignKey: 'person_id', as: 'person' });
+  User.hasOne(Student, { foreignKey: 'user_id', as: 'student_profile' });
+  Student.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
   Student.belongsTo(Occupation, { foreignKey: 'occupation_id', as: 'occupation' });
   Student.belongsTo(Level, { foreignKey: 'level_id', as: 'level' });

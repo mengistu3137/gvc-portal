@@ -1,13 +1,13 @@
 import sequelize from '../config/database.js';
 import { Sector, Occupation, Level, Module, AcademicYear, Batch, LevelModule } from './../modules/academics/academic.model.js';
-import { Instructor } from '../modules/instructors/instructor.model.js';
 import { Staff } from '../modules/staff/staff.model.js';
 import { Student } from '../modules/students/student.model.js';
 import { UserAccount, Role, Permission, UserRole, RolePermission } from '../modules/auth/auth.model.js';
-import { Person } from '../modules/persons/person.model.js';
+import { User } from '../modules/users/users.model.js';
 import { ModuleOffering, Enrollment } from '../modules/enrollment/enrollment.model.js';
 import { Assessment, StudentAssessmentScore, StudentResult, GradeScale, GradeSubmission } from '../modules/grading/grading.model.js';
 import argon2 from 'argon2';
+import permissionSeeder, { PREDEFINED_PERMISSIONS } from './permissionSeeder.js';
 
 class Seeder {
   // Helper method to upsert data without creating duplicate indexes
@@ -259,73 +259,31 @@ class Seeder {
         batches.push(batch);
       }
 
-      // ==================== 8. SEED PERSONS ====================
-      console.log('👥 Seeding Persons...');
-      const personData = [
-        { first_name: 'Admin', last_name: 'User', email: 'admin@gvc.edu', phone: '+251911111111' },
-        { first_name: 'John', last_name: 'Doe', email: 'john.doe@gvc.edu', phone: '+251922222222', gender: 'M' },
-        { first_name: 'Amina', last_name: 'Yusuf', email: 'amina.yusuf@gvc.edu', phone: '+251933333333', gender: 'F' },
-        { first_name: 'Jabiru', last_name: 'Aba jiru', middle_name: 'Abamilki', email: 'jabiru@gvc.edu', phone: '+251944444444', gender: 'M', date_of_birth: '1998-05-15' }
+      // ==================== 8. SEED USERS ====================
+      console.log('👥 Seeding Users...');
+      const userProfileData = [
+        { first_name: 'Admin', last_name: 'User', phone: '+251911111111' },
+        { first_name: 'John', last_name: 'Doe', phone: '+251922222222', gender: 'M' },
+        { first_name: 'Amina', last_name: 'Yusuf', phone: '+251933333333', gender: 'F' },
+        { first_name: 'Jabiru', last_name: 'Aba jiru', middle_name: 'Abamilki', phone: '+251944444444', gender: 'M', date_of_birth: '1998-05-15' }
       ];
-      
-      const persons = [];
-      for (const data of personData) {
-        const [person, created] = await Person.findOrCreate({
-          where: { email: data.email },
+
+      const usersProfiles = [];
+      for (const data of userProfileData) {
+        const [userProfile, created] = await User.findOrCreate({
+          where: { phone: data.phone },
           defaults: data,
           transaction
         });
         if (!created) {
-          await person.update(data, { transaction });
+          await userProfile.update(data, { transaction });
         }
-        persons.push(person);
+        usersProfiles.push(userProfile);
       }
 
       // ==================== 9. SEED PERMISSIONS ====================
       console.log('🔐 Seeding Permissions...');
-      const permissionData = [
-        { permission_code: 'view_users', permission_name: 'View Users', module_scope: 'auth' },
-        { permission_code: 'manage_users', permission_name: 'Manage Users', module_scope: 'auth' },
-        { permission_code: 'view_sector', permission_name: 'View Sectors', module_scope: 'academics' },
-        { permission_code: 'manage_sector', permission_name: 'Manage Sectors', module_scope: 'academics' },
-        { permission_code: 'view_occupation', permission_name: 'View Occupations', module_scope: 'academics' },
-        { permission_code: 'manage_occupation', permission_name: 'Manage Occupations', module_scope: 'academics' },
-        { permission_code: 'view_level', permission_name: 'View Levels', module_scope: 'academics' },
-        { permission_code: 'manage_level', permission_name: 'Manage Levels', module_scope: 'academics' },
-        { permission_code: 'view_module', permission_name: 'View Modules', module_scope: 'academics' },
-        { permission_code: 'manage_module', permission_name: 'Manage Modules', module_scope: 'academics' },
-        { permission_code: 'view_batch', permission_name: 'View Batches', module_scope: 'academics' },
-        { permission_code: 'manage_batch', permission_name: 'Manage Batches', module_scope: 'academics' },
-        { permission_code: 'view_curriculum', permission_name: 'View Curriculum', module_scope: 'academics' },
-        { permission_code: 'manage_curriculum', permission_name: 'Manage Curriculum', module_scope: 'academics' },
-        { permission_code: 'view_academic_year', permission_name: 'View Academic Years', module_scope: 'academics' },
-        { permission_code: 'manage_academic_year', permission_name: 'Manage Academic Years', module_scope: 'academics' },
-        { permission_code: 'view_offering', permission_name: 'View Module Offerings', module_scope: 'enrollment' },
-        { permission_code: 'manage_offering', permission_name: 'Manage Module Offerings', module_scope: 'enrollment' },
-        { permission_code: 'manage_enrollment', permission_name: 'Manage Enrollments', module_scope: 'enrollment' },
-        { permission_code: 'view_academic_progress', permission_name: 'View Academic Progress', module_scope: 'enrollment' },
-        { permission_code: 'manage_grading', permission_name: 'Manage Grading', module_scope: 'grading' },
-        { permission_code: 'view_instructor', permission_name: 'View Instructors', module_scope: 'instructors' },
-        { permission_code: 'manage_instructor', permission_name: 'Manage Instructors', module_scope: 'instructors' },
-        { permission_code: 'view_staff', permission_name: 'View Staff', module_scope: 'staff' },
-        { permission_code: 'manage_staff', permission_name: 'Manage Staff', module_scope: 'staff' },
-        { permission_code: 'view_student', permission_name: 'View Students', module_scope: 'students' },
-        { permission_code: 'manage_student', permission_name: 'Manage Students', module_scope: 'students' },
-        { permission_code: 'manage_announcement', permission_name: 'Manage Announcements', module_scope: 'announcements' },
-        { permission_code: 'view_announcement', permission_name: 'View Announcements', module_scope: 'announcements' }
-      ];
-      
-      for (const data of permissionData) {
-        const [permission, created] = await Permission.findOrCreate({
-          where: { permission_code: data.permission_code },
-          defaults: data,
-          transaction
-        });
-        if (!created) {
-          await permission.update(data, { transaction });
-        }
-      }
-
+      await permissionSeeder.seedPermissions(transaction);
       const allPermissions = await Permission.findAll({ transaction });
       const allPermissionCodes = allPermissions.map(p => p.permission_code);
 
@@ -353,9 +311,6 @@ class Seeder {
       // ==================== 11. ASSIGN PERMISSIONS TO ROLES ====================
       console.log('🔐 Assigning Permissions to Roles...');
       
-      // Clear existing role-permission associations
-      await RolePermission.destroy({ where: {}, transaction });
-      
       // Create new associations
       const rolePermissions = [];
       for (const role of roles) {
@@ -377,9 +332,9 @@ class Seeder {
       const hashedPassword = await argon2.hash('admin123', { type: argon2.argon2id });
       
       const userData = [
-        { person_id: persons[0].person_id, email: 'admin@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' },
-        { person_id: persons[1].person_id, email: 'john.doe@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' },
-        { person_id: persons[2].person_id, email: 'amina.yusuf@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' }
+        { user_id: usersProfiles[0].user_id, email: 'admin@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' },
+        { user_id: usersProfiles[1].user_id, email: 'john.doe@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' },
+        { user_id: usersProfiles[2].user_id, email: 'amina.yusuf@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' }
       ];
       
       const users = [];
@@ -401,9 +356,6 @@ class Seeder {
       const instructorRole = roles.find(r => r.role_code === 'INSTRUCTOR');
       const registrarRole = roles.find(r => r.role_code === 'REGISTRAR');
 
-      // Clear existing user-role associations
-      await UserRole.destroy({ where: {}, transaction });
-
       // Create new associations
       await UserRole.bulkCreate([
         { user_id: users[0].user_id, role_id: adminRole.role_id },
@@ -414,11 +366,11 @@ class Seeder {
       // ==================== 14. SEED INSTRUCTORS ====================
       console.log('👨‍🏫 Seeding Instructors...');
       const instructorDataSeed = [
-        { person_id: persons[1].person_id, staff_code: 'GVC/INST/001', occupation_id: hnsOcc.occupation_id, hire_date: '2024-01-15', qualification: 'MSc in Computer Science', employment_status: 'ACTIVE' }
+        { user_id: usersProfiles[1].user_id, staff_code: 'GVC/INST/001',  occupation_id: hnsOcc.occupation_id, hire_date: '2024-01-15', qualification: 'MSc in Computer Science', employment_status: 'ACTIVE' }
       ];
       
       for (const data of instructorDataSeed) {
-        const [instructor, created] = await Instructor.findOrCreate({
+        const [instructor, created] = await Staff.findOrCreate({
           where: { staff_code: data.staff_code },
           defaults: data,
           transaction
@@ -431,7 +383,7 @@ class Seeder {
       // ==================== 15. SEED STAFF ====================
       console.log('👔 Seeding Staff...');
       const staffDataSeed = [
-        { person_id: persons[2].person_id, staff_code: 'GVC/STF/001', staff_type: 'REGISTRAR', employment_status: 'ACTIVE' }
+        { user_id: usersProfiles[2].user_id, staff_code: 'GVC/STF/001',  employment_status: 'ACTIVE' }
       ];
       
       for (const data of staffDataSeed) {
@@ -449,7 +401,7 @@ class Seeder {
       console.log('🎓 Seeding Students...');
       const studentDataSeed = [
         { 
-          person_id: persons[3].person_id, 
+          user_id: usersProfiles[3].user_id, 
           student_id: 'GVC/2026/001', 
           reg_year: 2026, 
           reg_sequence: 1,
@@ -476,11 +428,11 @@ class Seeder {
       // ==================== 17. SEED MODULE OFFERINGS ====================
       console.log('📖 Seeding Module Offerings...');
       const nurModules = modules.filter(m => m.occupation_id === nurOcc.occupation_id);
-      const instructor = await Instructor.findOne({ where: { staff_code: 'GVC/INST/001' }, transaction });
+      const instructor = await Staff.findOne({ where: { staff_code: 'GVC/INST/001' }, transaction });
       
       const offeringDataSeed = [
-        { module_id: nurModules[0].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: instructor.instructor_id, capacity: 30 },
-        { module_id: nurModules[1].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: instructor.instructor_id, capacity: 30 }
+        { module_id: nurModules[0].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: instructor.staff_id, capacity: 30 },
+        { module_id: nurModules[1].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: instructor.staff_id, capacity: 30 }
       ];
       
       const offerings = [];

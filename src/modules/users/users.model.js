@@ -1,11 +1,11 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database.js';
 
-export class Person extends Model {}
+export class User extends Model {}
 
-Person.init({
-  person_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-// Inside Person.init
+User.init({
+  user_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  // Profile identity fields
 first_name: {
   type: DataTypes.STRING(35), // International standard (UK)
   allowNull: false,
@@ -32,19 +32,12 @@ last_name: {
   gender: { type: DataTypes.ENUM('M', 'F') },
   date_of_birth: { type: DataTypes.DATEONLY },
   phone: { type: DataTypes.STRING(30) },
-  email: {
-    type: DataTypes.STRING(190),
-    unique: true,
-    validate: {
-      isEmail: true 
-      
-    }
-  },
+
   photo_url: { type: DataTypes.STRING(255) }
 }, {
   sequelize,
-  modelName: 'person',
-  tableName: 'persons',
+  modelName: 'user',
+  tableName: 'users',
   paranoid: true,
   underscored: true
 });

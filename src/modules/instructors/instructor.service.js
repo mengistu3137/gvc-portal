@@ -1,31 +1,30 @@
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
-import { Instructor } from './instructor.model.js';
 import { StaffIdSequence } from '../staff/staff.model.js';
-import { Person } from '../persons/person.model.js';
+import { Staff } from '../staff/staff.model.js';
+import { User } from '../users/users.model.js';
 import { Occupation } from '../academics/academic.model.js';
 import { UserAccount, Role } from '../auth/auth.model.js';
 import argon2 from 'argon2';
 
 const toLegacyInstructorDto = (instructor) => {
   const row = instructor.toJSON();
-  const person = row.person || {};
-  const full_name = [person.first_name, person.middle_name, person.last_name]
+  const profile = row.user || {};
+  const full_name = [profile.first_name, profile.middle_name, profile.last_name]
     .filter(Boolean)
     .join(' ');
 
   return {
     ...row,
-    first_name: person.first_name || null,
-    middle_name: person.middle_name || null,
-    last_name: person.last_name || null,
+    first_name: profile.first_name || null,
+    middle_name: profile.middle_name || null,
+    last_name: profile.last_name || null,
     full_name: full_name || null,
-    gender: person.gender || null,
-    date_of_birth: person.date_of_birth || null,
-    phone: person.phone || null,
-    email: person.email || null,
-    photo_url: person.photo_url || null,
-    account_email: person.account?.email || null
+    gender: profile.gender || null,
+    date_of_birth: profile.date_of_birth || null,
+    phone: profile.phone || null,
+    photo_url: profile.photo_url || null,
+    account_email: profile.account?.email || null
   };
 };
 
@@ -51,26 +50,26 @@ class InstructorService {
 
       const generatedStaffCode = `GVC-INST-${String(nextSeq).padStart(3, '0')}/${shortYear}`;
 
-      const personPayload = {
+      const userPayload = {
         first_name: data.first_name,
         middle_name: data.middle_name || null,
         last_name: data.last_name,
         gender: data.gender || null,
         date_of_birth: data.date_of_birth || null,
         phone: data.phone || null,
-        email: data.email || null,
         photo_url: data.photo_url || null
       };
 
-      if (!personPayload.first_name || !personPayload.last_name) {
+      if (!userPayload.first_name || !userPayload.last_name) {
         throw new Error('first_name and last_name are required to create instructor identity.');
       }
 
-      const person = await Person.create(personPayload, { transaction: t });
+      const profile = await User.create(userPayload, { transaction: t });
 
-      const instructor = await Instructor.create({
-        person_id: person.person_id,
+      const instructor = await Staff.create({
+        user_id: profile.user_id,
         staff_code: generatedStaffCode,
+        staff_type: data.staff_type || 'INSTRUCTOR',
         occupation_id: data.occupation_id || null,
         hire_date: data.hire_date || null,
         qualification: data.qualification || null,
@@ -80,7 +79,7 @@ class InstructorService {
       if (data.account && data.account.email && data.account.password) {
         const password_hash = await argon2.hash(data.account.password, { type: argon2.argon2id });
         const user = await UserAccount.create({
-          person_id: person.person_id,
+          user_id: profile.user_id,
           email: data.account.email,
           password_hash,
           status: data.account.status || 'ACTIVE'
@@ -97,9 +96,9 @@ class InstructorService {
 
       await t.commit();
 
-      const created = await Instructor.findByPk(instructor.instructor_id, {
+      const created = await Staff.findByPk(instructor.staff_id, {
         include: [
-          { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+          { model: User, as: 'user', include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }] },
           { model: Occupation, as: 'occupation', attributes: ['occupation_name', 'occupation_code'] }
         ]
       });
@@ -122,23 +121,24 @@ class InstructorService {
         search ? {
           [Op.or]: [
             { staff_code: { [Op.like]: `%${search}%` } },
-            { '$person.first_name$': { [Op.like]: `%${search}%` } },
-            { '$person.last_name$': { [Op.like]: `%${search}%` } }
+            { '$user.first_name$': { [Op.like]: `%${search}%` } },
+            { '$user.last_name$': { [Op.like]: `%${search}%` } }
           ]
         } : {},
+        { staff_type: 'INSTRUCTOR' },
         status ? { employment_status: status } : {},
         occupation_id ? { occupation_id } : {}
       ]
     };
 
-    const result = await Instructor.findAndCountAll({
+    const result = await Staff.findAndCountAll({
       where: whereClause,
       include: [
         {
-          model: Person,
-          as: 'person',
+          model: User,
+          as: 'user',
           required: false,
-          include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }]
+          include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }]
         },
         { model: Occupation, as: 'occupation', attributes: ['occupation_name', 'occupation_code'] }
       ],
@@ -155,9 +155,10 @@ class InstructorService {
   }
 
   async getInstructorById(id) {
-    const instructor = await Instructor.findByPk(id, {
+    const instructor = await Staff.findOne({
+      where: { staff_id: id, staff_type: 'INSTRUCTOR' },
       include: [
-        { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+        { model: User, as: 'user', include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }] },
         { model: Occupation, as: 'occupation', attributes: ['occupation_name', 'occupation_code'] }
       ]
     });
@@ -169,34 +170,34 @@ class InstructorService {
   async updateInstructor(id, data) {
     const t = await sequelize.transaction();
     try {
-      const inst = await Instructor.findByPk(id, { transaction: t });
+      const inst = await Staff.findOne({ where: { staff_id: id, staff_type: 'INSTRUCTOR' }, transaction: t });
       if (!inst) throw new Error('Instructor not found');
 
-      const personUpdates = {};
+      const userUpdates = {};
       ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'phone', 'email', 'photo_url']
         .forEach((field) => {
           if (Object.prototype.hasOwnProperty.call(data, field)) {
-            personUpdates[field] = data[field];
+            if (field !== 'email') userUpdates[field] = data[field];
           }
         });
 
       const instructorUpdates = { ...data };
-      Object.keys(personUpdates).forEach((k) => delete instructorUpdates[k]);
+      Object.keys(userUpdates).forEach((k) => delete instructorUpdates[k]);
 
       if (Object.keys(instructorUpdates).length > 0) {
         await inst.update(instructorUpdates, { transaction: t });
       }
 
-      if (Object.keys(personUpdates).length > 0) {
-        const person = await Person.findByPk(inst.person_id, { transaction: t });
-        if (!person) throw new Error('Person identity not found for instructor');
-        await person.update(personUpdates, { transaction: t });
+      if (Object.keys(userUpdates).length > 0) {
+        const profile = await User.findByPk(inst.user_id, { transaction: t });
+        if (!profile) throw new Error('User identity not found for instructor');
+        await profile.update(userUpdates, { transaction: t });
       }
 
       await t.commit();
-      const updated = await Instructor.findByPk(id, {
+      const updated = await Staff.findByPk(id, {
         include: [
-          { model: Person, as: 'person', include: [{ model: UserAccount, as: 'account', attributes: ['user_id', 'email', 'status'] }] },
+          { model: User, as: 'user', include: [{ model: UserAccount, as: 'account', attributes: ['account_id', 'email', 'status'] }] },
           { model: Occupation, as: 'occupation', attributes: ['occupation_name', 'occupation_code'] }
         ]
       });
@@ -208,19 +209,19 @@ class InstructorService {
   }
 
   async deleteInstructor(id) {
-    const inst = await Instructor.findByPk(id);
+    const inst = await Staff.findOne({ where: { staff_id: id, staff_type: 'INSTRUCTOR' } });
     if (!inst) throw new Error('Instructor not found');
     return await inst.destroy();
   }
 
   async updateInstructorPhoto(id, photoUrl) {
-    const inst = await Instructor.findByPk(id);
+    const inst = await Staff.findOne({ where: { staff_id: id, staff_type: 'INSTRUCTOR' } });
     if (!inst) throw new Error('Instructor not found');
 
-    const person = await Person.findByPk(inst.person_id);
-    if (!person) throw new Error('Person identity not found for instructor');
+    const profile = await User.findByPk(inst.user_id);
+    if (!profile) throw new Error('User identity not found for instructor');
 
-    await person.update({ photo_url: photoUrl });
+    await profile.update({ photo_url: photoUrl });
     return this.getInstructorById(id);
   }
 }

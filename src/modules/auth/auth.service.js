@@ -5,20 +5,20 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import sequelize from '../../config/database.js';
 import { UserAccount, Role, Permission } from './auth.model.js';
-import { Person } from '../persons/person.model.js';
+import { User } from '../users/users.model.js';
 
 const toLegacyUserDto = (user) => {
   const row = user.toJSON();
-  const person = row.person || {};
-  const full_name = [person.first_name, person.middle_name, person.last_name]
+  const profile = row.user || {};
+  const full_name = [profile.first_name, profile.middle_name, profile.last_name]
     .filter(Boolean)
     .join(' ');
 
   return {
     ...row,
-    first_name: person.first_name || null,
-    middle_name: person.middle_name || null,
-    last_name: person.last_name || null,
+    first_name: profile.first_name || null,
+    middle_name: profile.middle_name || null,
+    last_name: profile.last_name || null,
     full_name: full_name || null
   };
 };
@@ -60,11 +60,6 @@ const buildResetEmailHtml = ({ fullName, resetUrl, expiresMinutes = 60 }) => `
 `;
 
 const getMailTransporter = () => {
-  console.log('Initializing mail transporter with config:', {
-    host: process.env.BREVO_SMTP_HOST || 'smtp.gmail.com',
-    user:  process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASS
-  });
   if (mailTransporter) return mailTransporter;
 
   // Gmail SMTP requires 2-Step Verification enabled and a 16-character App Password generated from Google Account settings
@@ -88,7 +83,7 @@ class AuthService {
   const user = await UserAccount.findOne({
     where: { email, status: 'ACTIVE' },
     include: [
-      { model: Person, as: 'person' },
+      { model: User, as: 'user' },
       {
         model: Role,
         as: 'roles',
@@ -129,11 +124,11 @@ class AuthService {
     token,
     user: {
       user_id: user.user_id,
-      person_id: user.person_id,
+      account_id: user.account_id,
       email: user.email,
-      first_name: user.person?.first_name || null,
-      last_name: user.person?.last_name || null,
-      full_name: [user.person?.first_name, user.person?.middle_name, user.person?.last_name].filter(Boolean).join(' ') || null
+      first_name: user.user?.first_name || null,
+      last_name: user.user?.last_name || null,
+      full_name: [user.user?.first_name, user.user?.middle_name, user.user?.last_name].filter(Boolean).join(' ') || null
     },
     roles: userRoles.map(r => r.role_code),
     permissions: permissions
@@ -145,7 +140,7 @@ class AuthService {
 
     const user = await UserAccount.findOne({
       where: { email },
-      include: [{ model: Person, as: 'person' }]
+      include: [{ model: User, as: 'user' }]
     });
 
     if (!user) {
@@ -172,7 +167,7 @@ class AuthService {
       from: process.env.GMAIL_FROM_EMAIL || process.env.GMAIL_USER || 'no-reply@gvc.edu',
       subject: 'GVC Portal password reset',
       html: buildResetEmailHtml({
-        fullName: [user.person?.first_name, user.person?.last_name].filter(Boolean).join(' '),
+        fullName: [user.user?.first_name, user.user?.last_name].filter(Boolean).join(' '),
         resetUrl,
         expiresMinutes: Math.round(RESET_TOKEN_TTL_MS / (60 * 1000))
       })
@@ -235,8 +230,8 @@ class AuthService {
         search ? {
           [Op.or]: [
             { email: { [Op.like]: `%${search}%` } },
-            { '$person.first_name$': { [Op.like]: `%${search}%` } },
-            { '$person.last_name$': { [Op.like]: `%${search}%` } }
+            { '$user.first_name$': { [Op.like]: `%${search}%` } },
+            { '$user.last_name$': { [Op.like]: `%${search}%` } }
           ]
         } : {},
         status ? { status } : {}
@@ -248,8 +243,8 @@ class AuthService {
       attributes: { exclude: ['password_hash'] },
       include: [
         {
-          model: Person,
-          as: 'person',
+          model: User,
+          as: 'user',
           required: true
         },
         { model: Role, as: 'roles' }
@@ -271,29 +266,28 @@ class AuthService {
   async createUser(data) {
     const t = await sequelize.transaction();
     try {
-      let personId = data.person_id;
+      let userId = data.user_id;
 
-      if (!personId) {
+      if (!userId) {
         if (!data.first_name || !data.last_name) {
-          throw new Error('person_id is required, or provide first_name and last_name to create person identity.');
+          throw new Error('user_id is required, or provide first_name and last_name to create user identity.');
         }
 
-        const person = await Person.create({
+        const profile = await User.create({
           first_name: data.first_name,
           middle_name: data.middle_name || null,
           last_name: data.last_name,
           gender: data.gender || null,
           date_of_birth: data.date_of_birth || null,
           phone: data.phone || null,
-          email: data.email || null,
           photo_url: data.photo_url || null
         }, { transaction: t });
-        personId = person.person_id;
+        userId = profile.user_id;
       }
 
       const hashedPassword = await argon2.hash(data.password, { type: argon2.argon2id });
       const user = await UserAccount.create({
-        person_id: personId,
+        user_id: userId,
         email: data.email,
         password_hash: hashedPassword,
         status: data.status,
@@ -308,10 +302,10 @@ class AuthService {
 
       await t.commit();
 
-      const created = await UserAccount.findByPk(user.user_id, {
+      const created = await UserAccount.findByPk(user.account_id, {
         attributes: { exclude: ['password_hash'] },
         include: [
-          { model: Person, as: 'person' },
+          { model: User, as: 'user' },
           { model: Role, as: 'roles' }
         ]
       });
@@ -339,7 +333,9 @@ class AuthService {
       ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'phone', 'email', 'photo_url']
         .forEach((field) => {
           if (Object.prototype.hasOwnProperty.call(data, field)) {
-            personUpdates[field] = data[field];
+            if (field !== 'email') {
+              personUpdates[field] = data[field];
+            }
           }
         });
 
@@ -352,9 +348,9 @@ class AuthService {
       }
 
       if (Object.keys(personUpdates).length > 0) {
-        const person = await Person.findByPk(user.person_id, { transaction: t });
-        if (!person) throw new Error('Person identity not found for user');
-        await person.update(personUpdates, { transaction: t });
+        const profile = await User.findByPk(user.user_id, { transaction: t });
+        if (!profile) throw new Error('User identity not found for account');
+        await profile.update(personUpdates, { transaction: t });
       }
 
       if (data.role_codes && data.role_codes.length > 0) {
@@ -367,7 +363,7 @@ class AuthService {
       const updatedUser = await UserAccount.findByPk(id, {
         attributes: { exclude: ['password_hash'] },
         include: [
-          { model: Person, as: 'person' },
+          { model: User, as: 'user' },
           { model: Role, as: 'roles' }
         ]
       });
@@ -382,6 +378,106 @@ class AuthService {
     const user = await UserAccount.findByPk(id);
     if (!user) throw new Error('User not found');
     return await user.destroy(); // Soft delete via paranoid: true
+  }
+
+  // --- ROLE / PERMISSION MANAGEMENT ---
+  async createRole(payload) {
+    const role = await Role.create({
+      role_code: payload.role_code,
+      role_name: payload.role_name,
+      permissions: payload.permissions || null
+    });
+    return role;
+  }
+
+  async listRoles() {
+    return Role.findAll({ include: [{ model: Permission, as: 'granted_permissions' }] });
+  }
+
+  async getRoleById(roleId) {
+    const role = await Role.findByPk(roleId, { include: [{ model: Permission, as: 'granted_permissions' }] });
+    if (!role) throw new Error('Role not found');
+    return role;
+  }
+
+  async updateRole(roleId, payload) {
+    const role = await Role.findByPk(roleId);
+    if (!role) throw new Error('Role not found');
+    await role.update(payload);
+    return this.getRoleById(roleId);
+  }
+
+  async deleteRole(roleId) {
+    const role = await Role.findByPk(roleId);
+    if (!role) throw new Error('Role not found');
+    await role.destroy();
+    return { message: 'Role deleted' };
+  }
+
+  async assignRolesToAccount(accountId, roleCodes = []) {
+    const account = await UserAccount.findByPk(accountId);
+    if (!account) throw new Error('User account not found');
+
+    const roles = await Role.findAll({ where: { role_code: roleCodes } });
+    await account.setRoles(roles);
+
+    return this.getUserWithRoles(accountId);
+  }
+
+  async unassignRolesFromAccount(accountId, roleCodes = []) {
+    const account = await UserAccount.findByPk(accountId);
+    if (!account) throw new Error('User account not found');
+
+    if (roleCodes.length === 0) {
+      await account.setRoles([]);
+      return this.getUserWithRoles(accountId);
+    }
+
+    const roles = await Role.findAll({ where: { role_code: roleCodes } });
+    await account.removeRoles(roles);
+
+    return this.getUserWithRoles(accountId);
+  }
+
+  async assignPermissionsToRole(roleId, permissionCodes = []) {
+    const role = await Role.findByPk(roleId);
+    if (!role) throw new Error('Role not found');
+
+    const permissions = await Permission.findAll({ where: { permission_code: permissionCodes } });
+    await role.setGranted_permissions(permissions);
+
+    return this.getRoleById(roleId);
+  }
+
+  async unassignPermissionsFromRole(roleId, permissionCodes = []) {
+    const role = await Role.findByPk(roleId);
+    if (!role) throw new Error('Role not found');
+
+    if (permissionCodes.length === 0) {
+      await role.setGranted_permissions([]);
+      return this.getRoleById(roleId);
+    }
+
+    const permissions = await Permission.findAll({ where: { permission_code: permissionCodes } });
+    await role.removeGranted_permissions(permissions);
+
+    return this.getRoleById(roleId);
+  }
+
+  async getUserWithRoles(accountId) {
+    const account = await UserAccount.findByPk(accountId, {
+      attributes: { exclude: ['password_hash'] },
+      include: [
+        { model: User, as: 'user' },
+        {
+          model: Role,
+          as: 'roles',
+          include: [{ model: Permission, as: 'granted_permissions' }]
+        }
+      ]
+    });
+    if (!account) throw new Error('User account not found');
+    return toLegacyUserDto(account);
   }
 }
 

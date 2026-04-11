@@ -63,3 +63,70 @@ export const deleteUser = async (req, res, next) => {
     res.json({ success: true, message: "User deleted (archived)" });
   } catch (error) { next(error); }
 };
+
+export const createRole = async (req, res, next) => {
+  try {
+    const data = await AuthService.createRole(req.body);
+    res.status(201).json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const getRoles = async (req, res, next) => {
+  try {
+    const data = await AuthService.listRoles();
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const getRoleById = async (req, res, next) => {
+  try {
+    const data = await AuthService.getRoleById(req.params.roleId);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const updateRole = async (req, res, next) => {
+  try {
+    const data = await AuthService.updateRole(req.params.roleId, req.body);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const deleteRole = async (req, res, next) => {
+  try {
+    const data = await AuthService.deleteRole(req.params.roleId);
+    res.json({ success: true, ...data });
+  } catch (error) { next(error); }
+};
+
+export const assignRolesToAccount = async (req, res, next) => {
+  try {
+    const role_codes = Array.isArray(req.body?.role_codes) ? req.body.role_codes : [];
+    const data = await AuthService.assignRolesToAccount(req.params.accountId, role_codes);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const unassignRolesFromAccount = async (req, res, next) => {
+  try {
+    const role_codes = Array.isArray(req.body?.role_codes) ? req.body.role_codes : [];
+    const data = await AuthService.unassignRolesFromAccount(req.params.accountId, role_codes);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const assignPermissionsToRole = async (req, res, next) => {
+  try {
+    const permission_codes = Array.isArray(req.body?.permission_codes) ? req.body.permission_codes : [];
+    const data = await AuthService.assignPermissionsToRole(req.params.roleId, permission_codes);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};
+
+export const unassignPermissionsFromRole = async (req, res, next) => {
+  try {
+    const permission_codes = Array.isArray(req.body?.permission_codes) ? req.body.permission_codes : [];
+    const data = await AuthService.unassignPermissionsFromRole(req.params.roleId, permission_codes);
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+};

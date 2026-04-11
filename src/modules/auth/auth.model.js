@@ -1,15 +1,15 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database.js';
-import { Person } from '../persons/person.model.js';
+import { User } from '../users/users.model.js';
 
 export class UserAccount extends Model {}
 UserAccount.init({
-  user_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-  person_id: {
+  account_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  user_id: {
     type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
     unique: true,
-    references: { model: 'persons', key: 'person_id' }
+    references: { model: 'users', key: 'user_id' }
   },
   email: { 
     type: DataTypes.STRING(190), 
@@ -70,11 +70,22 @@ export class RolePermission extends Model {}
 RolePermission.init({}, { sequelize, modelName: 'role_permission', tableName: 'role_permissions', timestamps: false, underscored: true });
 
 // Associations
-Person.hasOne(UserAccount, { foreignKey: 'person_id', as: 'account' });
-UserAccount.belongsTo(Person, { foreignKey: 'person_id', as: 'person' });
+User.hasOne(UserAccount, { foreignKey: 'user_id', as: 'account' });
+UserAccount.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 UserAccount.belongsToMany(Role, { 
-  through: UserRole, foreignKey: 'user_id', otherKey: 'role_id', as: 'roles' });
-Role.belongsToMany(UserAccount, { through: UserRole, foreignKey: 'role_id', otherKey: 'user_id', as: 'users' });
+  through: UserRole,
+  foreignKey: 'user_id',
+  otherKey: 'role_id',
+  sourceKey: 'user_id',
+  as: 'roles'
+});
+Role.belongsToMany(UserAccount, {
+  through: UserRole,
+  foreignKey: 'role_id',
+  otherKey: 'user_id',
+  targetKey: 'user_id',
+  as: 'users'
+});
 Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'role_id', otherKey: 'permission_id', as: 'granted_permissions' });
 Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permission_id', otherKey: 'role_id', as: 'roles' });
