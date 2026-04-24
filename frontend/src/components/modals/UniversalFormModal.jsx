@@ -1,200 +1,230 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../lib/api';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import { X, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 
 export function UniversalFormModal({ 
   open, 
   onClose, 
-  onSuccess, 
+  onSubmit, 
   schema, 
   initialData = null, 
   title, 
-  endpoint 
+  isLoading = false 
 }) {
   const isEdit = !!initialData;
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({});
+  const [showPassword, setShowPassword] = useState({});
 
- 
+  // Helper: Get nested value using dot notation (e.g., 'account.email')
+  const getNestedValue = (obj, path) => {
+    if (!obj || !path) return undefined;
+    return path.split('.').reduce((acc, part) => acc?.[part], obj);
+  };
 
-// Inside UniversalFormModal.jsx
-useEffect(() => {
-  if (open) {
-    const defaultData = {};
-    schema.forEach(field => {
-      // 1. If we are editing, use existing data
-      if (initialData) {
-        defaultData[field.name] = initialData[field.name];
-      } 
-      // 2. If creating AND it's a select field, default to the first option's value
-      else if (field.type === 'select' && field.options?.length > 0) {
-        defaultData[field.name] = field.options[0].value;
-      } 
-      // 3. Otherwise use defaultValue or empty string
-      else {
-        defaultData[field.name] = field.defaultValue || '';
-      }
-    });
+  // Helper: Set nested value using dot notation
+  const setNestedValue = (obj, path, value) => {
+    if (!path) return obj;
+    const keys = path.split('.');
+    const lastKey = keys.pop();
+    const target = keys.reduce((acc, key) => {
+      if (!acc[key]) acc[key] = {};
+      return acc[key];
+    }, obj);
+    target[lastKey] = value;
+    return { ...obj };
+  };
 
-    // Handle account logic
-    if (schema.find(f => f.name === 'account')) {
-      defaultData.create_account = false;
-      defaultData.account = initialData?.account || { email: '', password: '', role_codes: ['STAFF'] };
+  // Initialize form data when modal opens or schema/initialData changes
+  useEffect(() => {
+    if (open) {
+      const defaultData = {};
+      schema.forEach(field => {
+        const value = getNestedValue(initialData, field.name);
+        
+        if (value !== undefined && value !== null) {
+          defaultData[field.name] = value;
+        } else if (field.type === 'select' && field.options?.length > 0) {
+          defaultData[field.name] = field.options[0].value;
+        } else if (field.type === 'checkbox-group' && field.options?.length > 0) {
+          defaultData[field.name] = field.defaultValue || [];
+        } else {
+          defaultData[field.name] = field.defaultValue || '';
+        }
+      });
+      setFormData(defaultData);
     }
-    setFormData(defaultData);
-  }
-}, [open, initialData, schema]);
-  
+  }, [open, initialData, schema]);
+
+  const handleFieldChange = (name, value) => {
+    setFormData(prev => setNestedValue({ ...prev }, name, value));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      const payload = { ...formData };
-      
-      if (payload.create_account === false) delete payload.account;
-      
-
-      if (isEdit) {
-        await api.put(`${endpoint}/${initialData.id || initialData.staff_id}`, payload);
-        toast.success("Updated successfully");
-      } else {
-        await api.post(endpoint, payload);
-        toast.success("Created successfully");
-      }
-      onSuccess();
-      onClose();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Operation failed");
-    } finally {
-      setLoading(false);
-    }
+    await onSubmit(formData);
   };
 
   if (!open) return null;
+
+  const renderField = (field) => {
+    const value = getNestedValue(formData, field.name);
+    const fieldId = field.name.replace(/\./g, '_');
+
+    switch (field.type) {
+      case 'select':
+        return (
+          <select
+            id={fieldId}
+            className="w-full h-10 px-3 rounded-md border border-border-strong text-sm focus:ring-2 focus:ring-primary outline-none bg-white"
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.name, e.target.value)}
+            required={field.required}
+            disabled={field.disabled}
+          >
+            <option value="">Select {field.label}</option>
+            {field.options.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        );
+
+      case 'checkbox-group':
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-border-strong rounded-md bg-surface-muted/30">
+            {field.options.map(opt => (
+              <label key={opt.value} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-white rounded transition-colors">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  checked={(value || []).includes(opt.value)}
+                  onChange={(e) => {
+                    const current = value || [];
+                    const updated = e.target.checked
+                      ? [...current, opt.value]
+                      : current.filter(v => v !== opt.value);
+                    handleFieldChange(field.name, updated);
+                  }}
+                />
+                <span className="text-xs font-medium text-slate-700">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+
+      case 'phone':
+        return (
+          <div className="relative flex items-center">
+            <span className="absolute left-3 text-sm font-bold text-slate-400 border-r border-border-strong pr-2">
+              {field.prefix || '+251'}
+            </span>
+            <Input
+              id={fieldId}
+              className="pl-16"
+              value={value?.replace(field.prefix || '+251', '') || ''}
+              onChange={(e) => handleFieldChange(field.name, `${field.prefix || '+251'}${e.target.value.replace(/\D/g, '')}`)}
+              maxLength={field.maxLength || 9}
+              required={field.required}
+              placeholder={field.placeholder}
+            />
+          </div>
+        );
+
+      case 'password':
+        return (
+          <div className="relative">
+            <Input
+              id={fieldId}
+              type={showPassword[field.name] ? "text" : "password"}
+              placeholder={field.placeholder || (isEdit ? "Leave blank to keep current" : "Enter password")}
+              required={field.required && !isEdit}
+              className="pr-10"
+              value={value || ''}
+              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+            >
+              {showPassword[field.name] ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        );
+
+      case 'email':
+        return (
+          <Input
+            id={fieldId}
+            type="email"
+            placeholder={field.placeholder || "email@example.com"}
+            required={field.required}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.name, e.target.value.toLowerCase().trim())}
+          />
+        );
+
+      case 'divider':
+        return (
+          <div className="col-span-1 md:col-span-2 pt-4 border-t border-border-strong mt-2">
+            <h3 className="text-sm font-bold text-primary">{field.label}</h3>
+          </div>
+        );
+
+      default: // text, number, etc.
+        return (
+          <Input
+            id={fieldId}
+            type={field.type || 'text'}
+            placeholder={field.placeholder}
+            required={field.required}
+            value={value || ''}
+            onChange={(e) => {
+              let val = e.target.value;
+              // Common Validation: Name Sanitization
+              if (field.isName) val = val.replace(/[^a-zA-Z\s'-]/g, '');
+              if (field.maxLength) val = val.slice(0, field.maxLength);
+              handleFieldChange(field.name, val);
+            }}
+          />
+        );
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-ink/40 backdrop-blur-sm p-4">
       <div className="bg-brand-surface w-full max-w-2xl rounded-xl shadow-panel max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-border-strong flex justify-between items-center sticky top-0 bg-brand-surface z-10">
-          <h2 className="text-xl font-bold text-primary">{isEdit ? `Update ${title}` : `New ${title}`}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-red-500"><X /></button>
+          <h2 className="text-xl font-bold text-primary">
+            {isEdit ? `Update ${title}` : `New ${title}`}
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-red-500">
+            <X />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {schema.map((field) => {
-              if (field.name === 'account') return null; // Handled separately at bottom
-
-              return (
-                <div key={field.name} className={`space-y-1 ${field.fullWidth ? 'md:col-span-2' : ''}`}>
-                  <label className="text-xs font-bold first-letter:uppercase text-slate-500">
+            {schema.map((field) => (
+              <div key={field.name} className={`space-y-1 ${field.fullWidth ? 'md:col-span-2' : ''}`}>
+                {field.type !== 'divider' && (
+                  <label htmlFor={field.name.replace(/\./g, '_')} className="text-xs font-bold first-letter:uppercase text-slate-500">
                     {field.label}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
                   </label>
-                  
-                  {field.type === 'select' ? (
-                    <select 
-                      className="w-full h-10 px-3 rounded-md border border-border-strong text-sm focus:ring-2 focus:ring-primary outline-none"
-                      value={formData[field.name] || ''}
-                      onChange={e => setFormData({...formData, [field.name]: e.target.value})}
-                    >
-                      {field.options.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  ) : field.type === 'phone' ? (
-                    <div className="relative flex items-center">
-                      <span className="absolute left-3 text-sm font-bold text-slate-400 border-r border-border-strong pr-2">+251</span>
-                      <Input 
-                        className="pl-16"
-                        value={formData[field.name]?.replace('+251', '') || ''}
-                        onChange={e => setFormData({...formData, [field.name]: `+251${e.target.value.replace(/\D/g, '')}`})}
-                        maxLength={9}
-                      />
-                    </div>
-                  ) : (
-                    <Input 
-                      type={field.type || 'text'}
-                      required={field.required}
-                      value={formData[field.name] || ''}
-                      onChange={e => {
-                        let val = e.target.value;
-                        if (field.isName) val = val.replace(/[^a-zA-Z\s]/g, '');
-                        setFormData({...formData, [field.name]: val});
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                )}
+                {renderField(field)}
+                {field.hint && <p className="text-xs text-slate-400">{field.hint}</p>}
+              </div>
+            ))}
           </div>
 
-          {/* Specialized Account Section for Staff/Users */}
-          {schema.some(f => f.name === 'account') && (!isEdit || !initialData?.account_status || initialData?.account_status === 'NO ACCOUNT')&& (
-            <div className="p-4 bg-surface-muted rounded-lg border border-border-strong space-y-4">
-              <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox" 
-                  checked={formData.create_account || false}
-                  onChange={e => setFormData({...formData, create_account: e.target.checked})}
-                />
-                <label className="text-sm font-bold text-primary">Provision System Account</label>
-              </div>
-             {formData.create_account && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <Input 
-      type="email"
-      placeholder="Email " 
-      required={formData.create_account}
-      value={formData.account?.email || ''} // Controlled input
-      onChange={e => setFormData({
-        ...formData, 
-        account: {
-          ...formData.account, 
-          email: e.target.value.toLowerCase().trim() // Sanitize immediately
-        }
-      })}
-    />
-   {/* Password Field with Toggle */}
-    <div className="relative">
-      <Input 
-        type={showPassword ? "text" : "password"} 
-        placeholder="Password" 
-        required={formData.create_account}
-        className="pr-10" // Space for the icon
-        onChange={e => setFormData({
-          ...formData, 
-          account: {
-            ...formData.account, 
-            password: e.target.value
-          }
-        })} 
-      />
-      <button
-        type="button"
-        onClick={() => setShowPassword(!showPassword)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-      >
-        {showPassword ? (
-          <EyeOff className="h-4 w-4" />
-        ) : (
-          <Eye className="h-4 w-4" />
-        )}
-      </button>
-    </div>
-  </div>
-)}
-            </div>
-          )}
-
           <div className="flex justify-end gap-3 pt-4 border-t border-border-strong">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={loading} className="bg-primary text-white">
-              {loading ? 'Saving...' : isEdit ? 'Update' : 'Save'}
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading} className="bg-primary text-white">
+              {isLoading ? 'Saving...' : isEdit ? 'Update' : 'Save'}
             </Button>
           </div>
         </form>

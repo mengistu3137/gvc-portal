@@ -23,8 +23,18 @@ export const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // 3. High-Security Check: Ensure user still exists and status is 'ACTIVE' in DB
-    const user = await UserAccount.findByPk(decoded.userId, {
-      attributes: ['user_id', 'status', 'email']
+    const userId = decoded.userId ?? decoded.user_id;
+    const accountId = decoded.accountId ?? decoded.account_id;
+
+    if (!userId && !accountId) {
+      return res.status(401).json({ success: false, message: 'Invalid token payload.' });
+    }
+
+    const user = await UserAccount.findOne({
+      where: userId
+        ? { user_id: userId }
+        : { account_id: accountId },
+      attributes: ['account_id', 'user_id', 'status', 'email']
     });
 
     if (!user || user.status !== 'ACTIVE') {
@@ -36,7 +46,8 @@ export const authenticate = async (req, res, next) => {
 
     // 4. Attach user identity and capabilities (Permissions/Roles) to the request
     req.user = {
-      id: decoded.userId,
+      id: user.user_id,
+      account_id: user.account_id,
       email: decoded.email,
       roles: decoded.roles || [],
       permissions: decoded.permissions || []

@@ -2,8 +2,9 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database.js';
 import { Student } from '../students/student.model.js';
 import { Batch, Level } from '../academics/academic.model.js';
-import { Instructor } from '../instructors/instructor.model.js';
 import { ModuleOffering } from '../enrollment/enrollment.model.js';
+import { Staff } from '../staff/staff.model.js'; // Import Staff instead
+
 
 // ----------------------
 // ASSESSMENT
@@ -128,6 +129,10 @@ GradeScale.init({
 // ----------------------
 export class GradeSubmission extends Model {}
 
+// ... other imports ...
+
+
+
 GradeSubmission.init({
   submission_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
 
@@ -140,7 +145,8 @@ GradeSubmission.init({
   instructor_id: {
     type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
-    references: { model: 'instructors', key: 'instructor_id' }
+  
+    references: { model: 'staff', key: 'staff_id' } 
   },
 
   status: {
@@ -153,7 +159,6 @@ GradeSubmission.init({
   tableName: 'grade_submissions',
   underscored: true
 });
-
 // ----------------------
 // SUBMISSION ITEM
 // ----------------------
@@ -268,7 +273,7 @@ ModuleOffering.hasMany(StudentResult, { foreignKey: 'offering_id', as: 'results'
 StudentResult.belongsTo(ModuleOffering, { foreignKey: 'offering_id', as: 'module_offering' });
 
 GradeSubmission.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
-GradeSubmission.belongsTo(Instructor, { foreignKey: 'instructor_id' });
+GradeSubmission.belongsTo(Staff, { foreignKey: 'instructor_id' });
 
 ModuleOffering.hasMany(GradeSubmission, { foreignKey: 'offering_id' });
 

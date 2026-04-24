@@ -20,7 +20,7 @@ UserAccount.init({
     this.setDataValue('email', value.toLowerCase().trim());
   },
     validate: {
-      isEmail: true,
+   
       notEmpty: true,
       len: [5, 190]
     } 

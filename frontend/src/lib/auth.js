@@ -34,8 +34,14 @@ export function hasPermission(permissionCode) {
 
 export function hasRole(roleCode) {
   const user = getAuthUser();
-  if (!user || !user.roles) return false;
-  return user.roles.includes(roleCode);
+  if (!user?.roles) return false;
+
+  const rolesToCheck = Array.isArray(roleCode) ? roleCode : [roleCode];
+  
+  // Convert everything to Uppercase for comparison
+  return rolesToCheck.some(role => 
+    user.roles.some(userRole => userRole.toUpperCase() === role.toUpperCase())
+  );
 }
 
 export function isAuthenticated() {

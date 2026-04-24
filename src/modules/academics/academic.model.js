@@ -181,7 +181,7 @@ LevelModule.belongsTo(Module, { foreignKey: 'm_code', targetKey: 'm_code', as: '
 
 // LevelModule links to Level
 Level.hasMany(LevelModule, { foreignKey: 'level_id', sourceKey: 'level_id' });
-LevelModule.belongsTo(Level, { foreignKey: 'level_id', targetKey: 'level_id', as: 'level' });
+LevelModule.belongsTo(Level, { foreignKey: 'level_id', targetKey: 'level_id', as: 'level' , constraints: false});
 
 // LevelModule links to Occupation
 Occupation.hasMany(LevelModule, { foreignKey: 'occupation_id' });

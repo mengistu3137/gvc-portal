@@ -2,7 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database.js';
 import { Student } from '../students/student.model.js';
 import { Module, Batch } from '../academics/academic.model.js';
-import { Instructor } from '../instructors/instructor.model.js';
+import { Staff } from '../staff/staff.model.js';
 
 // ----------------------
 // MODULE OFFERING
@@ -32,7 +32,7 @@ ModuleOffering.init({
   instructor_id: {
     type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
-    references: { model: 'instructors', key: 'instructor_id' }
+    references: { model: 'staff', key: 'staff_id' }
   },
 
   capacity: DataTypes.INTEGER
@@ -88,11 +88,11 @@ Enrollment.init({
 // ModuleOffering
 Module.hasMany(ModuleOffering, { foreignKey: 'module_id', as: 'offerings' });
 Batch.hasMany(ModuleOffering, { foreignKey: 'batch_id', as: 'offerings' });
-Instructor.hasMany(ModuleOffering, { foreignKey: 'instructor_id', as: 'offerings' });
+Staff.hasMany(ModuleOffering, { foreignKey: 'instructor_id', as: 'offerings' });
 
 ModuleOffering.belongsTo(Module, { foreignKey: 'module_id', as: 'module' });
 ModuleOffering.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
-ModuleOffering.belongsTo(Instructor, { foreignKey: 'instructor_id', as: 'instructor' });
+ModuleOffering.belongsTo(Staff, { foreignKey: 'instructor_id', as: 'instructor' });
 
 // Enrollment
 Student.hasMany(Enrollment, { foreignKey: 'student_pk', as: 'enrollments' });

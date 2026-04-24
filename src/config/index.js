@@ -5,10 +5,10 @@ async function runSeeder() {
     const shouldTruncate = process.argv.includes('--truncate');
     
     if (shouldTruncate) {
-      await seeder.truncateAll();
+      await seeder.truncateAllLogic();
     }
     
-    await seeder.seedAll();
+    await seeder.run();
     console.log('Seeding completed successfully');
     process.exit(0);
   } catch (error) {

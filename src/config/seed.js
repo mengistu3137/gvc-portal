@@ -10,7 +10,7 @@ import argon2 from 'argon2';
 import permissionSeeder, { PREDEFINED_PERMISSIONS } from './permissionSeeder.js';
 
 class Seeder {
-  // Helper method to upsert data without creating duplicate indexes
+  // Helper method to upsert data
   async upsertData(model, data, uniqueFields, transaction) {
     const results = [];
     for (const item of data) {
@@ -55,9 +55,7 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await sector.update(data, { transaction });
-        }
+        if (!created) await sector.update(data, { transaction });
         sectors.push(sector);
       }
 
@@ -84,9 +82,7 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await occupation.update(data, { transaction });
-        }
+        if (!created) await occupation.update(data, { transaction });
         occupations.push(occupation);
       }
 
@@ -124,9 +120,7 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await level.update(data, { transaction });
-        }
+        if (!created) await level.update(data, { transaction });
       }
 
       // ==================== 4. SEED MODULES ====================
@@ -154,62 +148,74 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await module.update(data, { transaction });
-        }
+        if (!created) await module.update(data, { transaction });
         modules.push(module);
       }
 
-      // ==================== 5. SEED CURRICULUM ====================
+   
+            // ==================== 5. SEED CURRICULUM ====================
       console.log('📚 Seeding Curriculum...');
+      
+      // I have ensured there are NO duplicates for the same level in this list.
       const curriculumData = [
+        // ACF - Level 3
         { occupation_id: acfOcc.occupation_id, level_id: 3, m_code: 'ACF-MOD-001' },
         { occupation_id: acfOcc.occupation_id, level_id: 3, m_code: 'ACF-MOD-002' },
-        { occupation_id: acfOcc.occupation_id, level_id: 4, m_code: 'ACF-MOD-001' },
-        { occupation_id: acfOcc.occupation_id, level_id: 4, m_code: 'ACF-MOD-002' },
+        
+        // ANH - Level 1
         { occupation_id: anhOcc.occupation_id, level_id: 1, m_code: 'ANH-MOD-001' },
+        // ANH - Level 2
         { occupation_id: anhOcc.occupation_id, level_id: 2, m_code: 'ANH-MOD-001' },
         { occupation_id: anhOcc.occupation_id, level_id: 2, m_code: 'ANH-MOD-002' },
+        // ANH - Level 3
         { occupation_id: anhOcc.occupation_id, level_id: 3, m_code: 'ANH-MOD-001' },
         { occupation_id: anhOcc.occupation_id, level_id: 3, m_code: 'ANH-MOD-002' },
+        // ANH - Level 4
         { occupation_id: anhOcc.occupation_id, level_id: 4, m_code: 'ANH-MOD-001' },
         { occupation_id: anhOcc.occupation_id, level_id: 4, m_code: 'ANH-MOD-002' },
+
+        // HNS - Level 1
         { occupation_id: hnsOcc.occupation_id, level_id: 1, m_code: 'HNS-MOD-001' },
+        // HNS - Level 2
         { occupation_id: hnsOcc.occupation_id, level_id: 2, m_code: 'HNS-MOD-001' },
         { occupation_id: hnsOcc.occupation_id, level_id: 2, m_code: 'HNS-MOD-002' },
+        // HNS - Level 3
         { occupation_id: hnsOcc.occupation_id, level_id: 3, m_code: 'HNS-MOD-001' },
         { occupation_id: hnsOcc.occupation_id, level_id: 3, m_code: 'HNS-MOD-002' },
+        // HNS - Level 4
         { occupation_id: hnsOcc.occupation_id, level_id: 4, m_code: 'HNS-MOD-001' },
         { occupation_id: hnsOcc.occupation_id, level_id: 4, m_code: 'HNS-MOD-002' },
+
+        // MLS - Level 3
         { occupation_id: mlsOcc.occupation_id, level_id: 3, m_code: 'MLS-MOD-001' },
         { occupation_id: mlsOcc.occupation_id, level_id: 3, m_code: 'MLS-MOD-002' },
+        // MLS - Level 4
         { occupation_id: mlsOcc.occupation_id, level_id: 4, m_code: 'MLS-MOD-001' },
         { occupation_id: mlsOcc.occupation_id, level_id: 4, m_code: 'MLS-MOD-002' },
+
+        // NUR - Level 3
         { occupation_id: nurOcc.occupation_id, level_id: 3, m_code: 'NUR-MOD-001' },
         { occupation_id: nurOcc.occupation_id, level_id: 3, m_code: 'NUR-MOD-002' },
         { occupation_id: nurOcc.occupation_id, level_id: 3, m_code: 'NUR-MOD-003' },
+        // NUR - Level 4
         { occupation_id: nurOcc.occupation_id, level_id: 4, m_code: 'NUR-MOD-001' },
         { occupation_id: nurOcc.occupation_id, level_id: 4, m_code: 'NUR-MOD-002' },
         { occupation_id: nurOcc.occupation_id, level_id: 4, m_code: 'NUR-MOD-003' },
+
+        // PHS - Level 3
         { occupation_id: phsOcc.occupation_id, level_id: 3, m_code: 'PHS-MOD-001' },
         { occupation_id: phsOcc.occupation_id, level_id: 3, m_code: 'PHS-MOD-002' },
+        // PHS - Level 4
         { occupation_id: phsOcc.occupation_id, level_id: 4, m_code: 'PHS-MOD-001' },
         { occupation_id: phsOcc.occupation_id, level_id: 4, m_code: 'PHS-MOD-002' }
       ];
-      
       for (const data of curriculumData) {
         const [curriculum, created] = await LevelModule.findOrCreate({
-          where: { 
-            occupation_id: data.occupation_id, 
-            level_id: data.level_id, 
-            m_code: data.m_code 
-          },
+          where: { occupation_id: data.occupation_id, level_id: data.level_id, m_code: data.m_code },
           defaults: data,
           transaction
         });
-        if (!created) {
-          await curriculum.update(data, { transaction });
-        }
+        if (!created) await curriculum.update(data, { transaction });
       }
 
       // ==================== 6. SEED ACADEMIC YEARS ====================
@@ -226,9 +232,7 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await year.update(data, { transaction });
-        }
+        if (!created) await year.update(data, { transaction });
         academicYears.push(year);
       }
 
@@ -244,18 +248,11 @@ class Seeder {
       const batches = [];
       for (const data of batchData) {
         const [batch, created] = await Batch.findOrCreate({
-          where: { 
-            occupation_id: data.occupation_id, 
-            academic_year_id: data.academic_year_id, 
-            level_id: data.level_id,
-            division: data.division 
-          },
+          where: { occupation_id: data.occupation_id, academic_year_id: data.academic_year_id, level_id: data.level_id, division: data.division },
           defaults: data,
           transaction
         });
-        if (!created) {
-          await batch.update(data, { transaction });
-        }
+        if (!created) await batch.update(data, { transaction });
         batches.push(batch);
       }
 
@@ -275,9 +272,7 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await userProfile.update(data, { transaction });
-        }
+        if (!created) await userProfile.update(data, { transaction });
         usersProfiles.push(userProfile);
       }
 
@@ -292,7 +287,8 @@ class Seeder {
       const roleData = [
         { role_code: 'ADMIN', role_name: 'Super Administrator', permissions: allPermissionCodes },
         { role_code: 'REGISTRAR', role_name: 'Registrar', permissions: ['view_users', 'manage_users', 'view_occupation', 'view_level', 'view_module', 'view_batch', 'view_academic_year', 'view_student', 'manage_student', 'view_academic_progress'] },
-        { role_code: 'INSTRUCTOR', role_name: 'Instructor', permissions: ['view_module', 'view_batch', 'view_offering', 'manage_offering', 'manage_enrollment', 'manage_grading', 'view_student'] }
+        { role_code: 'INSTRUCTOR', role_name: 'Instructor', permissions: ['view_module', 'view_batch', 'view_offering', 'manage_offering', 'manage_enrollment', 'manage_grading', 'view_student'] },
+        { role_code: 'HOD', role_name: 'Head of Department', permissions: ['view_module', 'view_batch', 'view_student', 'view_offering'] }
       ];
       
       const roles = [];
@@ -302,16 +298,12 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await role.update(data, { transaction });
-        }
+        if (!created) await role.update(data, { transaction });
         roles.push(role);
       }
 
       // ==================== 11. ASSIGN PERMISSIONS TO ROLES ====================
       console.log('🔐 Assigning Permissions to Roles...');
-      
-      // Create new associations
       const rolePermissions = [];
       for (const role of roles) {
         const rolePerms = role.permissions || [];
@@ -324,8 +316,7 @@ class Seeder {
       if (rolePermissions.length > 0) {
         await RolePermission.bulkCreate(rolePermissions, { transaction, ignoreDuplicates: true });
       }
-      
-      console.log(`✅ Assigned permissions: Admin: ${allPermissionCodes.length}, Registrar: ${roles[1].permissions.length}, Instructor: ${roles[2].permissions.length}`);
+      console.log(`✅ Assigned permissions to ${roles.length} roles.`);
 
       // ==================== 12. SEED USER ACCOUNTS ====================
       console.log('👤 Seeding User Accounts...');
@@ -337,67 +328,68 @@ class Seeder {
         { user_id: usersProfiles[2].user_id, email: 'amina.yusuf@gvc.edu', password_hash: hashedPassword, status: 'ACTIVE', must_change_password: false, hash_algorithm: 'ARGON2ID' }
       ];
       
-      const users = [];
-      for (const data of userData) {
-        const [user, created] = await UserAccount.findOrCreate({
-          where: { email: data.email },
-          defaults: data,
-          transaction
-        });
-        if (!created) {
-          await user.update(data, { transaction });
-        }
-        users.push(user);
-      }
+      await UserAccount.bulkCreate(userData, {
+        transaction,
+        updateOnDuplicate: ['user_id', 'password_hash', 'hash_algorithm', 'status', 'must_change_password', 'updated_at']
+      });
+
+      const users = await UserAccount.findAll({
+        where: { email: userData.map(u => u.email) },
+        transaction
+      });
+
+      const usersByEmail = new Map(users.map(user => [user.email, user]));
+      const usersOrdered = userData.map(u => usersByEmail.get(u.email));
 
       // ==================== 13. ASSIGN ROLES TO USERS ====================
       console.log('👤 Assigning Roles to Users...');
       const adminRole = roles.find(r => r.role_code === 'ADMIN');
       const instructorRole = roles.find(r => r.role_code === 'INSTRUCTOR');
       const registrarRole = roles.find(r => r.role_code === 'REGISTRAR');
+      const hodRole = roles.find(r => r.role_code === 'HOD');
 
-      // Create new associations
       await UserRole.bulkCreate([
-        { user_id: users[0].user_id, role_id: adminRole.role_id },
-        { user_id: users[1].user_id, role_id: instructorRole.role_id },
-        { user_id: users[2].user_id, role_id: registrarRole.role_id }
+        { user_id: usersOrdered[0].user_id, role_id: adminRole.role_id },
+        // John Doe: Instructor + HOD (Multi-role example)
+        { user_id: usersOrdered[1].user_id, role_id: instructorRole.role_id },
+        { user_id: usersOrdered[1].user_id, role_id: hodRole.role_id }, 
+        { user_id: usersOrdered[2].user_id, role_id: registrarRole.role_id }
       ], { transaction, ignoreDuplicates: true });
 
-      // ==================== 14. SEED INSTRUCTORS ====================
-      console.log('👨‍🏫 Seeding Instructors...');
-      const instructorDataSeed = [
-        { user_id: usersProfiles[1].user_id, staff_code: 'GVC/INST/001',  occupation_id: hnsOcc.occupation_id, hire_date: '2024-01-15', qualification: 'MSc in Computer Science', employment_status: 'ACTIVE' }
-      ];
       
-      for (const data of instructorDataSeed) {
-        const [instructor, created] = await Staff.findOrCreate({
-          where: { staff_code: data.staff_code },
-          defaults: data,
-          transaction
-        });
-        if (!created) {
-          await instructor.update(data, { transaction });
-        }
-      }
+      // ==================== 14. SEED STAFF (Consolidated) ====================
+console.log('👔 Seeding Staff...');
+const staffDataSeed = [
+  // John Doe (Instructor + HOD)
+  { user_id: usersProfiles[1].user_id, staff_code: 'GVC/STF/001', occupation_id: hnsOcc.occupation_id, hire_date: '2024-01-15', qualification: 'MSc in Computer Science', employment_status: 'ACTIVE' },
+  // Amina Yusuf (Registrar)
+  { user_id: usersProfiles[2].user_id, staff_code: 'GVC/STF/002', employment_status: 'ACTIVE' }
+];
 
-      // ==================== 15. SEED STAFF ====================
-      console.log('👔 Seeding Staff...');
-      const staffDataSeed = [
-        { user_id: usersProfiles[2].user_id, staff_code: 'GVC/STF/001',  employment_status: 'ACTIVE' }
-      ];
-      
-      for (const data of staffDataSeed) {
-        const [staff, created] = await Staff.findOrCreate({
-          where: { staff_code: data.staff_code },
-          defaults: data,
-          transaction
-        });
-        if (!created) {
-          await staff.update(data, { transaction });
-        }
-      }
+const staffMembers = [];
+for (const data of staffDataSeed) {
+  const [staff, created] = await Staff.findOrCreate({
+    where: { staff_code: data.staff_code },
+    defaults: data,
+    transaction
+  });
+  if (!created) await staff.update(data, { transaction });
+  staffMembers.push(staff);
+}
 
-      // ==================== 16. SEED STUDENTS ====================
+// VERIFY staff exists before proceeding
+if (staffMembers.length === 0) {
+  throw new Error('No staff members were created!');
+}
+
+// Identify the primary instructor for offerings (John Doe)
+const primaryInstructor = staffMembers.find(s => s.staff_code === 'GVC/STF/001');
+if (!primaryInstructor) {
+  throw new Error('Primary instructor (GVC/STF/001) not found in staff table!');
+}
+console.log(`✅ Staff seeded: ${staffMembers.length} records, Primary Instructor ID: ${primaryInstructor.staff_id}`);
+
+      // ==================== 15. SEED STUDENTS ====================
       console.log('🎓 Seeding Students...');
       const studentDataSeed = [
         { 
@@ -419,40 +411,31 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await foundStudent.update(data, { transaction });
-        }
+        if (!created) await foundStudent.update(data, { transaction });
         student = foundStudent;
       }
 
-      // ==================== 17. SEED MODULE OFFERINGS ====================
+      // ==================== 16. SEED MODULE OFFERINGS ====================
       console.log('📖 Seeding Module Offerings...');
       const nurModules = modules.filter(m => m.occupation_id === nurOcc.occupation_id);
-      const instructor = await Staff.findOne({ where: { staff_code: 'GVC/INST/001' }, transaction });
       
       const offeringDataSeed = [
-        { module_id: nurModules[0].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: instructor.staff_id, capacity: 30 },
-        { module_id: nurModules[1].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: instructor.staff_id, capacity: 30 }
+        { module_id: nurModules[0].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: primaryInstructor.staff_id, capacity: 30 },
+        { module_id: nurModules[1].module_id, batch_id: batches[0].batch_id, section_code: 'A', instructor_id: primaryInstructor.staff_id, capacity: 30 }
       ];
       
       const offerings = [];
       for (const data of offeringDataSeed) {
         const [offering, created] = await ModuleOffering.findOrCreate({
-          where: { 
-            module_id: data.module_id, 
-            batch_id: data.batch_id, 
-            section_code: data.section_code 
-          },
+          where: { module_id: data.module_id, batch_id: data.batch_id, section_code: data.section_code },
           defaults: data,
           transaction
         });
-        if (!created) {
-          await offering.update(data, { transaction });
-        }
+        if (!created) await offering.update(data, { transaction });
         offerings.push(offering);
       }
 
-      // ==================== 18. SEED ENROLLMENTS ====================
+      // ==================== 17. SEED ENROLLMENTS ====================
       console.log('📝 Seeding Enrollments...');
       const enrollmentDataSeed = [
         { student_pk: student.student_pk, offering_id: offerings[0].offering_id, status: 'ENROLLED' },
@@ -465,12 +448,10 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await enrollment.update(data, { transaction });
-        }
+        if (!created) await enrollment.update(data, { transaction });
       }
 
-      // ==================== 19. SEED GRADE SCALES ====================
+      // ==================== 18. SEED GRADE SCALES ====================
       console.log('📊 Seeding Grade Scales...');
       const gradeScaleDataSeed = [
         { min_score: 85, max_score: 100, letter: 'A', grade_point: 4.0, is_pass: true },
@@ -486,12 +467,10 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await scale.update(data, { transaction });
-        }
+        if (!created) await scale.update(data, { transaction });
       }
 
-      // ==================== 20. SEED ASSESSMENTS ====================
+      // ==================== 19. SEED ASSESSMENTS ====================
       console.log('📋 Seeding Assessments...');
       const assessmentDataSeed = [
         { offering_id: offerings[0].offering_id, name: 'Final Exam', weight: 70 },
@@ -507,13 +486,11 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await assessment.update(data, { transaction });
-        }
+        if (!created) await assessment.update(data, { transaction });
         assessments.push(assessment);
       }
 
-      // ==================== 21. SEED STUDENT ASSESSMENT SCORES ====================
+      // ==================== 20. SEED STUDENT ASSESSMENT SCORES ====================
       console.log('✍️ Seeding Student Assessment Scores...');
       const scoreDataSeed = [
         { student_pk: student.student_pk, assessment_id: assessments[0].assessment_id, score: 85 },
@@ -528,12 +505,10 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await score.update(data, { transaction });
-        }
+        if (!created) await score.update(data, { transaction });
       }
 
-      // ==================== 22. SEED STUDENT RESULTS ====================
+      // ==================== 21. SEED STUDENT RESULTS ====================
       console.log('🎯 Seeding Student Results...');
       const resultDataSeed = [
         { student_pk: student.student_pk, offering_id: offerings[0].offering_id, attempt_no: 1, total_score: 86.5, letter_grade: 'A', grade_point: 4.0, status: 'PASSED' },
@@ -546,16 +521,14 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await result.update(data, { transaction });
-        }
+        if (!created) await result.update(data, { transaction });
       }
 
-      // ==================== 23. SEED GRADE SUBMISSIONS ====================
+      // ==================== 22. SEED GRADE SUBMISSIONS ====================
       console.log('📑 Seeding Grade Submissions...');
       const submissionDataSeed = [
-        { offering_id: offerings[0].offering_id, instructor_id: instructor.instructor_id, status: 'APPROVED' },
-        { offering_id: offerings[1].offering_id, instructor_id: instructor.instructor_id, status: 'APPROVED' }
+        { offering_id: offerings[0].offering_id, instructor_id: primaryInstructor.staff_id, status: 'APPROVED' },
+        { offering_id: offerings[1].offering_id, instructor_id: primaryInstructor.staff_id, status: 'APPROVED' }
       ];
       
       for (const data of submissionDataSeed) {
@@ -564,15 +537,12 @@ class Seeder {
           defaults: data,
           transaction
         });
-        if (!created) {
-          await submission.update(data, { transaction });
-        }
+        if (!created) await submission.update(data, { transaction });
       }
 
       await transaction.commit();
       console.log('✅ Database seeding completed successfully!');
-      console.log(`📊 Summary: ${sectors.length} sectors, ${occupations.length} occupations, ${modules.length} modules, ${batches.length} batches, ${users.length} users created.`);
-      console.log(`🔐 Admin user has ${allPermissionCodes.length} permissions assigned.`);
+      console.log(`📊 Summary: ${sectors.length} sectors, ${occupations.length} occupations, ${modules.length} modules, ${batches.length} batches, ${staffMembers.length} staff created.`);
       
     } catch (error) {
       await transaction.rollback();
@@ -580,27 +550,38 @@ class Seeder {
       throw error;
     }
   }
-
-  async truncateAll() {
+  async truncateAllLogic(transaction) {
     console.log('⚠️ Truncating all tables...');
-    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction });
     
     const tables = [
       'student_assessment_scores', 'student_results', 'assessments', 'grade_submissions', 'grade_scales',
-      'enrollments', 'module_offerings', 'students', 'instructors', 'staff',
+      'enrollments', 'module_offerings', 'students', 'staff', // Removed 'instructors'
       'level_modules', 'batches', 'academic_years', 'modules', 'levels', 'occupations', 'sectors',
       'user_roles', 'role_permissions', 'user_accounts', 'roles', 'permissions', 'persons'
     ];
     
     for (const table of tables) {
-      await sequelize.query(`TRUNCATE TABLE ${table}`);
-      console.log(`  Truncated: ${table}`);
+      try {
+        const [results] = await sequelize.query(
+          `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '${table}'`,
+          { transaction }
+        );
+        
+        if (results[0].count > 0) {
+          await sequelize.query(`TRUNCATE TABLE ${table}`, { transaction });
+          console.log(`  Truncated: ${table}`);
+        } else {
+          console.log(`  Skipped (Not Found): ${table}`);
+        }
+      } catch (error) {
+        console.error(`  Error truncating ${table}:`, error.message);
+      }
     }
     
-    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
-    console.log('✅ All tables truncated successfully!');
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
   }
-  
+
   async run() {
     try {
       await sequelize.authenticate();
@@ -609,14 +590,29 @@ class Seeder {
       const args = process.argv.slice(2);
       const shouldTruncate = args.includes('--truncate');
       
+      // 1. HANDLE TRUNCATION IN A SEPARATE TRANSACTION
+      // This prevents locks from carrying over to the seeding step
       if (shouldTruncate) {
-        await this.truncateAll();
+        const t = await sequelize.transaction();
+        try {
+          await this.truncateAllLogic(t);
+          await t.commit(); // Commit cleanup first
+          console.log('✅ Truncation committed successfully.');
+          // Small delay to ensure DB releases locks
+          await new Promise(resolve => setTimeout(resolve, 100)); 
+        } catch (err) {
+          await t.rollback();
+          throw err;
+        }
       }
       
+      // 2. HANDLE SEEDING IN A FRESH TRANSACTION
       await this.seedAll();
+      
+      console.log('🎉 Seeding completed successfully');
       process.exit(0);
     } catch (error) {
-      console.error('Seeding failed:', error);
+      console.error('❌ Seeding failed:', error);
       process.exit(1);
     }
   }

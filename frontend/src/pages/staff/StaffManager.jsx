@@ -3,7 +3,7 @@ import { api } from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { DeleteConfirmCard } from '../../components/ui/DeleteConfirmCard';
-import { UserPlus, Search, Edit, Trash2, Mail, Phone, Clock } from 'lucide-react';
+import { UserPlus, Search, Edit, Trash2, Mail, Phone, Lock, Shield, Briefcase, Calendar } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { UniversalFormModal } from '../../components/modals/UniversalFormModal';
 
@@ -11,44 +11,118 @@ export function StaffManager() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   
-  // Unified Modal states
+  // Dropdown Options
+  const [roleOptions, setRoleOptions] = useState([]);
+  const [occupationOptions, setOccupationOptions] = useState([]);
+  
+  // Modal States
   const [formOpen, setFormOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Delete states
-  const [deleteId, setDeleteId] = useState(null); // can be number (single) or array (bulk)
+  const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const staffSchema = [
+  // Schema Definition aligned with StaffService
+  const getStaffSchema = (roles, occupations) => [
+    // --- Section 1: Personal Information ---
+    { name: 'personal_header', label: 'Personal Information', type: 'divider', fullWidth: true },
     { name: 'first_name', label: 'First name', type: 'text', required: true, isName: true },
     { name: 'middle_name', label: 'Middle name', type: 'text', isName: true },
     { name: 'last_name', label: 'Last name', type: 'text', required: true, isName: true },
-    {
-      name: 'staff_type', label: 'Staff role', type: 'select', required: true,
+    { name: 'phone', label: 'Phone number', type: 'phone', required: true, prefix: '+251', maxLength: 9 },
+      { 
+      name: 'account.email', 
+      label: 'Account Email', 
+      type: 'email', 
+      required: true, 
+      placeholder: 'staff@gvc.edu'
+    },
+    
+    { 
+      name: 'account.password', 
+      label: 'Password', 
+      type: 'password', 
+      // Required only for Create. Logic handled in renderField based on isEdit or explicit prop.
+      // We pass required: true here, but UniversalFormModal handles the "edit mode" exception if we pass isEdit context, 
+      // or we just handle it in validation. For now, we keep it required.
+      required: true, 
+      placeholder: 'Must be at least 6 characters',
+  
+    },
+
+    { 
+      name: 'account.role_ids', 
+      label: 'Assign Roles', 
+      type: 'checkbox-group', 
+      options: roles, 
+      fullWidth: true,
+      hint: 'Select all applicable system roles for this user.'
+    },
+    
+    // --- Section 2: Employment Details ---
+    { name: 'employment_header', label: 'Employment Details', type: 'divider', fullWidth: true },
+    
+    { 
+      name: 'employment_status', 
+      label: 'Status', 
+      type: 'select', 
+      required: true, 
+      defaultValue: 'ACTIVE',
       options: [
-        { label: 'Staff', value: 'STAFF' },
-        { label: 'Admin', value: 'ADMIN' },
-        { label: 'Registrar', value: 'REGISTRAR' },
-        { label: 'QA', value: 'QA' },
-        { label: 'Finance', value: 'FINANCE' }
+        { value: 'ACTIVE', label: 'Active' },
+        { value: 'ON_LEAVE', label: 'On Leave' },
+        { value: 'INACTIVE', label: 'Inactive' }
       ]
     },
-    { name: 'phone', label: 'Phone number', type: 'phone' },
-    { name: 'email', label: 'Email address', type: 'email' },
-    { name: 'account', label: 'System Account' }
+
+    { 
+      name: 'occupation_id', 
+      label: 'Occupation', 
+      type: 'select', 
+      options: occupations,
+      placeholder: 'Select role or title'
+    },
+
+    { 
+      name: 'hire_date', 
+      label: 'Hire Date', 
+      type: 'date', 
+    },
+
+    { 
+      name: 'qualification', 
+      label: 'Highest Qualification', 
+      type: 'text', 
+      placeholder: 'e.g. MSc in Computer Science' 
+    },
+
+    { 
+      name: 'specializations', 
+      label: 'Specializations', 
+      type: 'text', 
+      fullWidth: true, 
+      placeholder: 'Comma separated (e.g. Database, Web Development)' 
+    },
+    
+    // --- Section 3: System Account ---
+    
+  
   ];
 
   useEffect(() => {
     fetchStaff();
-  }, [searchTerm, filterType]);
+    fetchRoles();
+    fetchOccupations();
+  }, [searchTerm]);
 
   const fetchStaff = async () => {
     try {
       setLoading(true);
-      const params = { search: searchTerm, staff_type: filterType, limit: 50 };
+      const params = { search: searchTerm, limit: 50 };
       const response = await api.get('/staff', { params });
       setStaffList(response.rows || []);
     } catch (error) {
@@ -58,17 +132,118 @@ export function StaffManager() {
     }
   };
 
-  // Fixed: handles both single and bulk deletion
+  const fetchRoles = async () => {
+    try {
+      const response = await api.get('/auth/roles'); 
+      const roles = response.data || response.roles || [];
+      
+      const formattedRoles = Array.isArray(roles) ? roles.map(r => ({ 
+        value: r.role_code, // Storing code
+        label: r.role_name || r.role_code 
+      })) : [];
+      setRoleOptions(formattedRoles);
+    } catch (error) {
+      console.error("Failed to fetch roles", error);
+      setRoleOptions([]);
+    }
+  };
+
+  const fetchOccupations = async () => {
+    try {
+      // Assuming an endpoint exists to fetch occupations.
+      // Adjust endpoint if your structure differs (e.g., /academics/occupations)
+      const response = await api.get('/academics/occupations'); 
+      const occupations = response.data || response.occupations || [];
+      
+      const formattedOccupations = Array.isArray(occupations) ? occupations.map(o => ({
+        value: o.occupation_id,
+        label: o.occupation_title || o.name
+      })) : [];
+      setOccupationOptions(formattedOccupations);
+    } catch (error) {
+      console.error("Failed to fetch occupations", error);
+      setOccupationOptions([]);
+    }
+  };
+
+  // Unified Submit Handler aligned with StaffService
+  const handleSubmit = async (formData) => {
+    setIsSubmitting(true);
+    try {
+      const isEdit = !!selectedStaff;
+
+      const { account, ...staffFields } = formData;
+
+      // Map UI specific role_ids to backend role_codes
+      const accountPayload = {
+        ...account,
+        role_codes: account.role_ids || []
+      };
+      delete accountPayload.role_ids; 
+
+      // Backend expects 'specializations' as string or JSON. 
+      // Input type 'text' sends string. Service handles JSON stringify if needed.
+      
+      const finalPayload = {
+        ...staffFields,
+        account: accountPayload
+      };
+
+      if (isEdit) {
+        await api.put(`/staff/${selectedStaff.staff_id}`, finalPayload);
+      } else {
+        await api.post('/staff', finalPayload);
+      }
+
+      toast.success(`Staff ${isEdit ? 'updated' : 'created'} successfully`);
+      setFormOpen(false);
+      fetchStaff();
+    } catch (error) {
+      console.error(error);
+      const message = error.response?.data?.message || error.message || "Operation failed";
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Helper to pre-fill form data from API response
+  const prepareInitialData = (staff) => {
+    if (!staff) return null;
+    
+    return {
+      // Personal
+      first_name: staff.first_name,
+      middle_name: staff.middle_name,
+      last_name: staff.last_name,
+      phone: staff.phone,
+      
+      // Employment
+      employment_status: staff.employment_status || 'ACTIVE',
+      occupation_id: staff.occupation?.occupation_id || staff.occupation_id, // Handle nested or flat ID
+      hire_date: staff.hire_date,
+      qualification: staff.qualification,
+      specializations: Array.isArray(staff.specializations) 
+        ? staff.specializations.join(', ') 
+        : (staff.specializations || ''),
+
+      // Account
+      account: {
+        email: staff.account_email,
+        password: '', // Never populate password
+        role_ids: staff.roles ? staff.roles.map(r => r.role_code) : []
+      }
+    };
+  };
+
   const confirmDelete = async () => {
     setDeleting(true);
     try {
       if (Array.isArray(deleteId) && deleteId.length > 0) {
-        
         await Promise.all(deleteId.map(id => api.delete(`/staff/${id}`)));
         toast.success(`${deleteId.length} staff members archived successfully`);
-        setSelectedIds([]); // clear checkboxes after bulk delete
+        setSelectedIds([]);
       } else if (deleteId) {
-        // Single delete
         await api.delete(`/staff/${deleteId}`);
         toast.success("Staff archived successfully");
       }
@@ -79,6 +254,11 @@ export function StaffManager() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleEdit = (staff) => {
+    setSelectedStaff(staff);
+    setFormOpen(true);
   };
 
   return (
@@ -92,7 +272,7 @@ export function StaffManager() {
         <div className="flex gap-2">
           {selectedIds.length > 0 && (
             <Button
-              onClick={() => setDeleteId(selectedIds)} // Pass array for bulk delete
+              onClick={() => setDeleteId(selectedIds)}
               className="bg-red-500 text-white border border-red-500 hover:bg-red-600 focus:ring-red-500 items-center flex"
             >
               <Trash2 className="mr-2 h-4 w-4" /> ({selectedIds.length})
@@ -112,24 +292,12 @@ export function StaffManager() {
         <div className="relative flex-1 min-w-[250px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
-            placeholder="Search by name, code, or email..."
+            placeholder="Search by name, code, email, or phone..."
             className="pl-10 border-border-strong focus:ring-primary focus:ring-1"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <select
-          className="border border-border-strong rounded-md px-3 text-sm focus:ring-2 focus:ring-primary outline-none bg-white"
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-        >
-          <option value="">All Staff Types</option>
-          <option value="STAFF">Staff</option>
-          <option value="FINANCE">Finance</option>
-          <option value="REGISTRAR">Registrar</option>
-          <option value="ADMIN">Administration</option>
-          <option value="QA">Quality Assurance</option>
-        </select>
       </div>
 
       {/* Staff Table */}
@@ -148,9 +316,9 @@ export function StaffManager() {
                 />
               </th>
               <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider">Staff Detail</th>
-              <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider">Type</th>
               <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider">Contact</th>
-              <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider">Status</th>
+              <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider">Employment</th>
+              <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider">Roles</th>
               <th className="p-4 text-xs font-bold text-primary first:letter:uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
@@ -187,24 +355,42 @@ export function StaffManager() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-black bg-white border border-border-strong text-primary uppercase">
-                      {staff.staff_type}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3 text-primary" /> {staff.email || 'N/A'}</div>
+                    <div className="text-sm text-slate-600 flex items-center gap-1"><Mail className="h-3 w-3 text-primary" /> {staff.account_email || 'N/A'}</div>
                     <div className="text-sm text-slate-600 flex items-center gap-1"><Phone className="h-3 w-3 text-primary" /> {staff.phone || 'N/A'}</div>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${staff.account_status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-400'}`} />
-                      <span className="text-xs font-bold text-slate-700 uppercase">{staff.account_status || 'NO ACCOUNT'}</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        <Briefcase className="h-3 w-3 text-slate-400" /> {staff.occupation?.occupation_title || 'General Staff'}
+                      </span>
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded w-fit
+                        ${staff.employment_status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
+                          staff.employment_status === 'ON_LEAVE' ? 'bg-orange-100 text-orange-700' : 
+                          'bg-slate-100 text-slate-600'}`}>
+                        {staff.employment_status}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex flex-wrap gap-1">
+                       {staff.roles && staff.roles.length > 0 ? (
+                         staff.roles.slice(0, 2).map(r => (
+                           <span key={r.role_code} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-muted border border-border-strong text-slate-600">
+                             {r.role_name}
+                           </span>
+                         ))
+                       ) : (
+                         <span className="text-xs text-slate-400 italic">No roles</span>
+                       )}
+                       {staff.roles && staff.roles.length > 2 && (
+                         <span className="text-xs text-slate-400">+{staff.roles.length - 2}</span>
+                       )}
                     </div>
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-white"
-                        onClick={() => { setSelectedStaff(staff); setFormOpen(true); }}>
+                        onClick={() => handleEdit(staff)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-white"
@@ -220,15 +406,15 @@ export function StaffManager() {
         </table>
       </div>
 
-      {/* Dynamic Modal for Create/Update */}
+      {/* Dynamic Modal */}
       <UniversalFormModal
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        onSuccess={fetchStaff}
+        onSubmit={handleSubmit}
+        schema={getStaffSchema(roleOptions, occupationOptions)}
+        initialData={prepareInitialData(selectedStaff)}
         title="Staff Member"
-        endpoint="/staff"
-        schema={staffSchema}
-        initialData={selectedStaff}
+        isLoading={isSubmitting}
       />
 
       {/* Delete Confirmation Overlay */}

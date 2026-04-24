@@ -1,6 +1,6 @@
 import { ModuleOffering, Enrollment } from './../enrollment/enrollment.model.js';
 import { Module, Batch } from '../academics/academic.model.js';
-import { Instructor } from '../instructors/instructor.model.js';
+import { Staff } from '../staff/staff.model.js';
 
 class ModuleOfferingService {
   async createOffering(payload) {
@@ -32,7 +32,7 @@ class ModuleOfferingService {
       include: [
         { model: Module, as: 'module' },
         { model: Batch, as: 'batch' },
-        { model: Instructor, as: 'instructor' }
+        { model: Staff, as: 'instructor' }
       ],
       order: [['created_at', 'DESC']]
     });
@@ -43,7 +43,7 @@ class ModuleOfferingService {
       include: [
         { model: Module, as: 'module' },
         { model: Batch, as: 'batch' },
-        { model: Instructor, as: 'instructor' }
+        { model: Staff, as: 'instructor' }
       ]
     });
     if (!offering) throw new Error('Module offering not found');

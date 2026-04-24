@@ -38,6 +38,7 @@ router.route('/occupations/:id')
   .delete(auth('manage_occupation'), deleteOccupation);
 
 // --- MODULE ROUTES ---
+router.get('/modules/public', getModules);
 router.route('/modules')
   .post(auth('manage_module'), createModule)
   .get(auth('view_module'), getModules);

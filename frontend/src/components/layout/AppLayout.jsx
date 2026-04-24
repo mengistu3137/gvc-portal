@@ -9,21 +9,84 @@ import {
   UsersRound,
   Boxes,
   FileBadge2,
+  Layers, // Added for Academics icon
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuthSession, getAuthUser, hasPermission } from '../../lib/auth';
+import { clearAuthSession, getAuthUser, hasRole } from '../../lib/auth';
 import { cn } from '../../lib/utils';
 
+// Define permission/role requirements for sidebar visibility
+// We use roles here since we switched to RBAC
 const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/', permission: 'view_dashboard' },
-  { label: 'Sectors & Occupations', icon: Boxes, to: '/academic-explorer', permission: 'view_sector' },
-  { label: 'Modules', icon: BookOpenCheck, to: '/modules', permission: 'view_module' },
-  { label: 'Instructors', icon: UserRound, to: '/instructors', permission: 'view_instructor' },
-  { label: 'Staff', icon: UsersRound, to: '/staff', permission: 'view_staff' },
-  { label: 'Enrollment', icon: ShieldCheck, to: '/enrollment', permission: 'manage_enrollment' },
-  { label: 'Grade Entry', icon: FileBadge2, to: '/grade-entry', permission: 'manage_grading' },
-  { label: 'Grade Approvals', icon: GraduationCap, to: '/grading', permission: 'manage_grading' },
-  { label: 'Students', icon: GraduationCap, to: '/students', permission: 'view_student' },
+  { 
+    label: 'Dashboard', 
+    icon: LayoutDashboard, 
+    to: '/', 
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR', 'REGISTRAR'] 
+  },
+    { 
+    label: 'Staff', 
+    icon: UsersRound, 
+    to: '/staff', 
+    roles: ['ADMIN', 'HR_MANAGER'] 
+  },
+  { 
+    label: 'Academics', 
+    icon: Layers, // Added this item
+    to: '/academics', 
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR', 'REGISTRAR'] 
+  },
+  {
+    label: 'Grading',
+    icon: GraduationCap,
+    to: '/grading',
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR', 'REGISTRAR', 'INSTRUCTOR'],
+
+  },
+
+  { 
+    label: 'Sectors & Occupations', 
+    icon: Boxes, 
+    to: '/academic-explorer', 
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR', 'INSTRUCTOR'] 
+  },
+  { 
+    label: 'Modules', 
+    icon: BookOpenCheck, 
+    to: '/modules', 
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR'] 
+  },
+  { 
+    label: 'Instructors', 
+    icon: UserRound, 
+    to: '/instructors', 
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR'] 
+  },
+
+  { 
+    label: 'Enrollment', 
+    icon: ShieldCheck, 
+    to: '/enrollment', 
+    roles: ['ADMIN', 'REGISTRAR'] 
+  },
+  { 
+    label: 'Grade Entry', 
+    icon: FileBadge2, 
+    to: '/grade-entry', 
+    roles: ['ADMIN', 'INSTRUCTOR'] 
+  },
+  { 
+    label: 'Grade Approvals', 
+    icon: GraduationCap, 
+    to: '/grading', 
+    roles: ['ADMIN', 'ACADEMIC_DIRECTOR', 'INSTRUCTOR'] 
+  },
+  { 
+    label: 'Students', 
+    icon: UsersRound, // Re-using UsersRound, or you can import UserCircle
+    to: '/students', 
+    roles: ['ADMIN', 'REGISTRAR', 'INSTRUCTOR'] 
+  },
 ];
 
 function buildBreadcrumbs(pathname) {
@@ -48,16 +111,19 @@ export function AppLayout({ children }) {
   return (
     <div className="min-h-screen bg-brand-background">
       <aside className="fixed inset-y-0 left-0 z-30 w-20 border-r border-brand-blue/40 bg-brand-blue text-white md:w-64">
-       <div className="flex items-center gap-2">
-  <img src="/gvc_logo.png" className="h-8 w-8 rounded-full" />
-  <div className="leading-tight">
-    <p className="text-sm font-semibold">Grand Valley</p>
-    <p className="text-[11px] text-white/75">College Portal</p>
-  </div>
-</div>
+        {/* Sidebar Header / Logo */}
+        <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
+          <img src="/gvc_logo.png" alt="GVC Logo" className="h-8 w-8 rounded-full bg-white p-0.5" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold text-white">Grand Valley</p>
+            <p className="text-[11px] text-brand-yellow/90">College Portal</p>
+          </div>
+        </div>
+
+        {/* Navigation Links */}
         <nav className="mt-4 flex flex-col gap-1 px-2 md:px-4">
           {navItems
-            .filter((item) => !item.permission || hasPermission(item.permission))
+            .filter((item) => !item.roles || hasRole(item.roles))
             .map((item) => (
               <NavLink
                 key={item.to}
@@ -81,9 +147,10 @@ export function AppLayout({ children }) {
       </aside>
 
       <div className="pl-20 md:pl-64">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-border-strong bg-brand-surface/95 backdrop-blur supports-[backdrop-filter]:bg-brand-surface/60">
           <div className="flex h-14 items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-brand-blue">
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary">
               {crumbs.map((crumb, index) => (
                 <span key={crumb + index} className="inline-flex items-center gap-2">
                   {index > 0 ? <span className="text-slate-300">/</span> : null}
@@ -94,20 +161,21 @@ export function AppLayout({ children }) {
               ))}
             </div>
 
+            {/* User Actions */}
             <div className="flex items-center gap-3 text-sm">
-              <Link to="#" className="rounded-full border border-slate-200 p-1 text-slate-500">
+              <Link to="#" className="rounded-full border border-border-strong bg-surface-muted p-1.5 text-slate-500 hover:bg-surface-muted/80 transition-colors">
                 <Bell size={14} />
               </Link>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface-muted px-3 py-1">
                 <UserCircle2 size={16} className="text-primary" />
-                <span className="text-xs font-medium text-slate-700">
-                  {authUser?.full_name || authUser?.email || 'Registrar'}
+                <span className="text-xs font-medium text-brand-ink">
+                  {authUser?.full_name || authUser?.email || 'User'}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={onLogout}
-                className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                className="rounded border border-border-strong px-3 py-1 text-xs font-medium text-slate-600 hover:bg-surface-muted hover:text-brand-ink transition-colors"
               >
                 Logout
               </button>
@@ -115,7 +183,7 @@ export function AppLayout({ children }) {
           </div>
         </header>
 
-        <main className="p-4 md:p-5">{children}</main>
+        <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

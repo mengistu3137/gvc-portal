@@ -17,4 +17,5 @@ router.post('/', auth('manage_offering'), createOffering);
 router.put('/:id', auth('manage_offering'), updateOffering);
 router.delete('/:id', auth('manage_offering'), deleteOffering);
 
+
 export default router;
