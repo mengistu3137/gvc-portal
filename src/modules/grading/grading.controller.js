@@ -139,10 +139,17 @@ export const calculateFinalGrade = async (req, res, next) => {
 
 export const listAssessments = async (req, res, next) => {
   try {
-    const rows = await Assessment.findAll({
-      where: { offering_id: req.params.offeringId },
-      order: [['assessment_id', 'ASC']]
+    const rows = await GradingService.listAssessmentsByOffering(
+      req.params.offeringId
+    );
+
+    res.json({
+      success: true,
+      count: rows.length,
+      rows
     });
-    res.json({ success: true, count: rows.length, rows });
-  } catch (error) { next(error); }
+
+  } catch (error) {
+    next(error);
+  }
 };

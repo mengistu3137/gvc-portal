@@ -1,267 +1,142 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { api } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Alert } from '../components/ui/Alert';
-import { Skeleton } from '../components/ui/skeleton';
-import { useCrud } from '../hooks/useCrud';
-import { api } from '../lib/api';
+import { BookOpen, Users, CheckCircle, Search, Calendar, MapPin } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { GradeDrawer } from '../components/grading/GradeDrawer';
 
-export function GradeEntry() {
-  const studentsCrud = useCrud('students');
-  const offeringsCrud = useCrud('offerings');
-
-  const [form, setForm] = useState({
-    student_pk: '',
-    offering_id: null,
-    assessment_scores: [],
-  });
-
-  const [moduleAssessments, setModuleAssessments] = useState([]);
-  console.log("module assse",moduleAssessments)
-  const [errorMessage, setErrorMessage] = useState('');
-
-  /* ================= LIST QUERIES ================= */
-
-  const studentsQuery = studentsCrud.list({ page: 1, limit: 300 });
-  const offeringsQuery = offeringsCrud.list({ page: 1, limit: 300 });
-
-  /* ================= MODULE DETAIL QUERY ================= */
-
-  const moduleDetailQuery = useQuery({
-    queryKey: ['offering-assessments', form.offering_id],
-    queryFn: async () => {
-      const res = await api.get(`/grading/assessments/${form.offering_id}`);
-      return res.payload || res.data || [];
-    },
-    enabled: false,
-  });
-
-  /* ===== Trigger fetch when module changes ===== */
+export  function GradeEntry() {
+  const [offerings, setOfferings] = useState([]);
+  const [filteredOfferings, setFilteredOfferings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Drawer State
+  const [selectedOffering, setSelectedOffering] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
-    if (form.offering_id) {
-      moduleDetailQuery.refetch();
-    }
-  }, [form.offering_id]);
+    fetchInstructorClasses();
+  }, []);
 
-  /* ===== When module detail arrives ===== */
-
-  useEffect(() => {
-    if (Array.isArray(moduleDetailQuery.data)) {
-      setModuleAssessments(moduleDetailQuery.data);
-
-      setForm((current) => ({
-        ...current,
-        assessment_scores: moduleDetailQuery.data.map((a) => ({
-          name: a.name,
-          weight: a.weight,
-          score: '',
-        })),
-      }));
-    } else {
-      setModuleAssessments([]);
-      setForm((current) => ({
-        ...current,
-        assessment_scores: [],
-      }));
-    }
-  }, [moduleDetailQuery.data]);
-
-  /* ================= TOTAL SCORE ================= */
-
-  const totalScore = useMemo(() => {
-    return form.assessment_scores.reduce((sum, item) => {
-      const weight = Number(item.weight || 0);
-      const score = Number(item.score || 0);
-      return sum + (score * weight) / 100;
-    }, 0);
-  }, [form.assessment_scores]);
-
-  const onAssessmentScore = (index, value) => {
-    setForm((current) => ({
-      ...current,
-      assessment_scores: current.assessment_scores.map((item, idx) =>
-        idx === index ? { ...item, score: value } : item
-      ),
-    }));
-  };
-
-  /* ================= SAVE GRADE ================= */
-
-  const gradeMutation = useMutation({
-    mutationFn: async (payload) =>
-      api.post('/grading/grades', payload),
-  });
-
-  const submitGrade = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    if (!form.student_pk || !form.offering_id) {
-      setErrorMessage('Student and offering are required.');
-      return;
-    }
-
+  const fetchInstructorClasses = async () => {
     try {
-      await gradeMutation.mutateAsync({
-        student_pk: Number(form.student_pk),
-        offering_id: Number(form.offering_id),
-        assessment_scores: form.assessment_scores.map((a) => ({
-          ...a,
-          score: Number(a.score || 0),
-        })),
-        total_score: totalScore,
-        final_score: totalScore,
-      });
-
-      /* RESET */
-      setForm({
-        student_pk: '',
-        offering_id: null,
-        assessment_scores: [],
-      });
-      setModuleAssessments([]);
-
-    } catch (err) {
-      setErrorMessage(err.message || 'Unable to save grade');
+      setLoading(true);
+      // Fetch offerings. In a real app, you might filter by the logged-in user's ID if they are an instructor.
+      // For now, we fetch all to demonstrate the UI.
+      const res = await api.get('/offerings'); 
+      console.log("offerings", res)
+      setOfferings(res.rows || []);
+      setFilteredOfferings(res.data || []);
+    } catch (error) {
+      toast.error("Failed to load your classes");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const isLoading =
-    studentsQuery.isLoading ||
-    offeringsQuery.isLoading;
+  // Search Filter
+  useEffect(() => {
+    const term = searchTerm.toLowerCase();
+    const filtered = offerings.filter(o => 
+      o.module?.unit_competency?.toLowerCase().includes(term) ||
+      o.module?.m_code?.toLowerCase().includes(term) ||
+      o.batch?.batch_code?.toLowerCase().includes(term)
+    );
+    setFilteredOfferings(filtered);
+  }, [searchTerm, offerings]);
 
-  /* ================= UI ================= */
+  const handleCardClick = (offering) => {
+    setSelectedOffering(offering);
+    setIsDrawerOpen(true);
+  };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Grade Entry</CardTitle>
-        </CardHeader>
+    <div className="p-6 space-y-6 bg-brand-background min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-primary tracking-tight">My Classes</h1>
+          <p className="text-slate-500 text-sm font-medium">Manage grades, assessments, and attendance for your active modules.</p>
+        </div>
+        <div className="flex gap-2">
+           <Button variant="outline" className="bg-white text-slate-700 border-border-strong">
+             <Calendar size={16} className="mr-2" /> Schedule
+           </Button>
+        </div>
+      </div>
 
-        <CardContent className="space-y-4">
+      {/* Search Bar */}
+      <div className="relative max-w-2xl">
+        <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+        <Input
+          placeholder="Search by module name, code, or batch..."
+          className="pl-10 h-12 bg-white border-border-strong shadow-sm focus:ring-2 focus:ring-primary/20"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
-          {errorMessage && (
-            <Alert tone="danger" title="Save failed">
-              {errorMessage}
-            </Alert>
-          )}
+      {/* Class Cards Grid */}
+      {loading ? (
+        <div className="text-center py-12 text-primary animate-pulse">Loading your classes...</div>
+      ) : filteredOfferings.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-xl border-2 border-dashed border-border-strong text-slate-400">
+          No classes found matching your criteria.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredOfferings.map((offering) => (
+            <div
+              key={offering.offering_id}
+              onClick={() => handleCardClick(offering)}
+              className="group relative bg-white rounded-xl border border-border-strong p-6 shadow-sm hover:shadow-panel hover:border-brand-blue/40 transition-all cursor-pointer"
+            >
+              {/* Status Indicator */}
+              <div className="absolute top-4 right-4 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </div>
 
-          {moduleDetailQuery.isError && (
-            <Alert tone="danger" title="Module fetch failed">
-              {moduleDetailQuery.error?.message}
-            </Alert>
-          )}
-
-          {isLoading && (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          )}
-
-          <form className="space-y-3" onSubmit={submitGrade}>
-            <div className="grid gap-3 md:grid-cols-3">
-
-              {/* STUDENT */}
-              <select
-                value={form.student_pk}
-                onChange={(e) =>
-                  setForm((c) => ({ ...c, student_pk: e.target.value }))
-                }
-                className="rounded-md border px-3 py-2 text-sm"
-                required
-              >
-                <option value="">Select student</option>
-                {(studentsQuery.data || []).map((s) => (
-                  <option key={s.student_pk} value={s.student_pk}>
-                    {s.student_id} — {s.full_name}
-                  </option>
-                ))}
-              </select>
-
-              {/* OFFERING */}
-              <select
-                value={form.offering_id || ''}
-                onChange={(e) =>
-                  setForm((c) => ({
-                    ...c,
-                    offering_id: Number(e.target.value),
-                  }))
-                }
-                className="rounded-md border px-3 py-2 text-sm"
-                required
-              >
-                <option value="">Select offering</option>
-                {(offeringsQuery.data || []).map((o) => (
-                  <option key={o.offering_id} value={o.offering_id}>
-                    {o.module?.m_code || o.module_id} — {o.batch?.batch_code || `Level ${o.batch?.level_id}`} — Section {o.section_code}
-                  </option>
-                ))}
-              </select>
-
-            </div>
-
-            {/* ASSESSMENTS */}
-            {moduleAssessments.length > 0 ? (
-              <div className="border rounded-lg p-3 space-y-2">
-                <p className="text-xs font-semibold uppercase">
-                  Assessment Scores
-                </p>
-
-                {form.assessment_scores.map((item, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <div className="flex-1">{item.name}</div>
-                    <Input
-                      type="number"
-                      value={item.score}
-                      onChange={(e) =>
-                        onAssessmentScore(i, e.target.value)
-                      }
-                      className="w-28"
-                    />
-                  </div>
-                ))}
-
-                <div className="flex justify-between bg-white px-3 py-2 rounded">
-                  <span>Total Score</span>
-                  <span className="font-bold">{totalScore}</span>
+              {/* Module Info */}
+              <div className="mb-4 pr-6">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
+                  {offering.module?.m_code}
+                </div>
+                <h3 className="font-bold text-brand-ink text-lg leading-tight mb-1 group-hover:text-brand-blue transition-colors">
+                  {offering.module?.unit_competency}
+                </h3>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
+                  <MapPin size={12} />
+                  <span>Sec {offering.section_code}</span>
+                  <span>•</span>
+                  <span>{offering.batch?.batch_code}</span>
                 </div>
               </div>
-            ) : (
-              <Alert tone="info" title="No assessments">
-                Select module to load assessments
-              </Alert>
-            )}
 
-            <div className="flex gap-2">
-              <Button type="submit">
-                {gradeMutation.isPending ? 'Saving...' : 'Submit Grade'}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setForm({
-                    student_pk: '',
-                    offering_id: null,
-                    assessment_scores: [],
-                  });
-                  setModuleAssessments([]);
-                }}
-              >
-                Reset
-              </Button>
+              {/* Footer Stats */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-medium">
+                <div className="flex items-center gap-1.5">
+                  <Users size={14} className="text-slate-400" />
+                  <span>{offering.capacity || 0} Capacity</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-brand-blue">
+                   <BookOpen size={14} />
+                   <span>Manage</span>
+                </div>
+              </div>
             </div>
+          ))}
+        </div>
+      )}
 
-          </form>
-        </CardContent>
-      </Card>
+      {/* Side Drawer for Grading */}
+      <GradeDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        offering={selectedOffering} 
+      />
     </div>
   );
 }

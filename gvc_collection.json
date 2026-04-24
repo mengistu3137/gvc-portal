@@ -1171,97 +1171,572 @@
     },
     {
       "name": "Grading",
+     "item": [
+    {
+      "name": "1. Grade Submissions (Workflow)",
       "item": [
         {
           "name": "List Grade Submissions",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/grading/submissions?status=",
+              "raw": "{{baseUrl}}/grading/submissions?status=SUBMITTED&offering_id={{offeringId}}",
               "host": ["{{baseUrl}}"],
               "path": ["grading", "submissions"],
-              "query": [{ "key": "status", "value": "" }]
-            }
+              "query": [
+                { "key": "status", "value": "SUBMITTED", "description": "Filter by status: DRAFT, SUBMITTED, APPROVED, REJECTED", "disabled": false },
+                { "key": "offering_id", "value": "{{offeringId}}", "description": "Filter by module offering", "disabled": false }
+              ]
+            },
+            "description": "Retrieve all grade submissions with optional filters"
           },
           "response": []
         },
         {
-          "name": "Create Grade Submission",
+          "name": "Get Submission by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/submissions/{{submissionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "submissions", "{{submissionId}}"]
+            },
+            "description": "Retrieve specific submission with all associated items and approvals"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Draft Submission (Manual)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"offering_id\": {{offeringId}},\n  \"instructor_id\": {{instructorId}},\n  \"status\": \"DRAFT\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": { "raw": "{{baseUrl}}/grading/submissions", "host": ["{{baseUrl}}"], "path": ["grading", "submissions"] }
+            "url": {
+              "raw": "{{baseUrl}}/grading/submissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "submissions"]
+            },
+            "description": "Create a manual draft submission shell (rarely used - typically submit directly)"
           },
           "response": []
         },
         {
-          "name": "Change Submission Status",
+          "name": "Submit Grades for Approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offering_id\": {{offeringId}},\n  \"instructor_id\": {{instructorId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/grading/submissions/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "submissions", "submit"]
+            },
+            "description": "Submit all grades for an offering to workflow. Creates submission record and links all student results."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve/Reject Submission",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"role\": \"DEAN\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/grading/submissions/{{submissionId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "submissions", "{{submissionId}}", "approve"]
+            },
+            "description": "Approve or reject a submitted grade batch. Creates approval record with timestamp.",
+            "bodyOptions": {
+              "raw": {
+                "language": "json",
+                "syntax": {
+                  "status": ["APPROVED", "REJECTED"],
+                  "role": ["DEAN", "DEPARTMENT_CHAIR", "REGISTRAR"]
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Legacy: Change Submission Status (Deprecated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"next_status\": \"APPROVED\",\n  \"note\": \"Status change via Postman\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": { "raw": "{{baseUrl}}/grading/submissions/{{submissionId}}/status", "host": ["{{baseUrl}}"], "path": ["grading", "submissions", "{{submissionId}}", "status"] }
+            "url": {
+              "raw": "{{baseUrl}}/grading/submissions/{{submissionId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "submissions", "{{submissionId}}", "status"]
+            },
+            "description": "DEPRECATED: Use approve endpoint instead. Changes submission status without approval tracking."
           },
           "response": []
-        },
+        }
+      ]
+    },
+    {
+      "name": "2. Grade Entry Operations",
+      "item": [
         {
-          "name": "Upsert Student Grade",
+          "name": "Upsert Single Student Grade",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"student_pk\": {{studentId}},\n  \"offering_id\": {{offeringId}},\n  \"assessment_scores\": [\n    { \"name\": \"Final Exam\", \"score\": 85, \"weight\": 70 },\n    { \"name\": \"Project\", \"score\": 90, \"weight\": 30 }\n  ]\n}",
+              "raw": "{\n  \"student_pk\": {{studentId}},\n  \"offering_id\": {{offeringId}},\n  \"attempt_no\": 1,\n  \"assessment_scores\": [\n    { \"name\": \"Midterm Exam\", \"score\": 78, \"weight\": 40 },\n    { \"name\": \"Final Exam\", \"score\": 85, \"weight\": 60 }\n  ]\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": { "raw": "{{baseUrl}}/grading/grades", "host": ["{{baseUrl}}"], "path": ["grading", "grades"] }
+            "url": {
+              "raw": "{{baseUrl}}/grading/grades",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "grades"]
+            },
+            "description": "Create or update a single student's grades. Automatically calculates weighted score and determines letter grade."
           },
           "response": []
         },
         {
-          "name": "Upsert Student Grades Bulk",
+          "name": "Upsert Multiple Student Grades",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"rows\": [\n    {\n      \"student_pk\": {{studentId}},\n      \"offering_id\": {{offeringId}},\n      \"assessment_scores\": [\n        { \"name\": \"Overall\", \"weight\": 100, \"score\": 85 }\n      ]\n    }\n  ]\n}",
+              "raw": "{\n  \"rows\": [\n    {\n      \"student_pk\": 1001,\n      \"offering_id\": {{offeringId}},\n      \"attempt_no\": 1,\n      \"assessment_scores\": [\n        { \"name\": \"Midterm Exam\", \"weight\": 40, \"score\": 78 },\n        { \"name\": \"Final Exam\", \"weight\": 60, \"score\": 85 }\n      ]\n    },\n    {\n      \"student_pk\": 1002,\n      \"offering_id\": {{offeringId}},\n      \"attempt_no\": 1,\n      \"assessment_scores\": [\n        { \"name\": \"Midterm Exam\", \"weight\": 40, \"score\": 92 },\n        { \"name\": \"Final Exam\", \"weight\": 60, \"score\": 88 }\n      ]\n    }\n  ]\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": { "raw": "{{baseUrl}}/grading/grades/bulk", "host": ["{{baseUrl}}"], "path": ["grading", "grades", "bulk"] }
+            "url": {
+              "raw": "{{baseUrl}}/grading/grades/bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "grades", "bulk"]
+            },
+            "description": "Bulk create/update grades for multiple students. Individual failures don't affect others."
           },
           "response": []
         },
         {
-          "name": "List Assessments",
+          "name": "Import Grades from Spreadsheet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/grades.xlsx",
+                  "description": "Excel/CSV file with columns: student_id, offering_id, assessment_name, score"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/grading/grades/import",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "grades", "import"]
+            },
+            "description": "Import grades from Excel/CSV file using spreadsheetUpload middleware"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Assessment Management",
+      "item": [
+        {
+          "name": "List Assessments by Offering",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/grading/assessments/{{offeringId}}",
               "host": ["{{baseUrl}}"],
               "path": ["grading", "assessments", "{{offeringId}}"]
-            }
+            },
+            "description": "Retrieve all assessment definitions for a module offering"
           },
           "response": []
         },
         {
-          "name": "Calculate Final Grade",
+          "name": "Create/Update Assessment (via grade entry)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/grades",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "grades"]
+            },
+            "description": "Assessments are automatically created/updated when entering grades (see Grade Entry section)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. GPA Calculation",
+      "item": [
+        {
+          "name": "Calculate Student GPA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/gpa/calculate/{{student_pk}}/{{batch_id}}/{{level_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "gpa", "calculate", "{{student_pk}}", "{{batch_id}}", "{{level_id}}"]
+            },
+            "description": "Calculate Level GPA and Cumulative GPA for a student. Uses credit_units from Module.",
+            "url_parameters": [
+              { "key": "student_pk", "value": "{{student_pk}}", "description": "Student primary key" },
+              { "key": "batch_id", "value": "{{batch_id}}", "description": "Batch identifier" },
+              { "key": "level_id", "value": "{{level_id}}", "description": "Level identifier (optional, derived from batch if not provided)" }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate GPA for All Students in Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/gpa/batch-calculate/{{batch_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "gpa", "batch-calculate", "{{batch_id}}"]
+            },
+            "description": "MISSING ROUTE - Batch calculate GPA for all students in a batch",
+            "disabled": true
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Reporting & Analytics",
+      "item": [
+        {
+          "name": "Get Module Grade Sheet",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/sheet/{{offering_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "sheet", "{{offering_id}}"]
+            },
+            "description": "Instructor view: Complete grade sheet for a module offering including all students, assessments, and final grades"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student Transcript",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/transcript/{{student_pk}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "transcript", "{{student_pk}}"]
+            },
+            "description": "Complete academic transcript for a student including all modules, grades, and module details"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student GPA History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/grading/gpa/history/{{student_pk}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["grading", "gpa", "history", "{{student_pk}}"]
+            },
+            "description": "MISSING ROUTE - Retrieve GPA records for a student across all levels",
+            "disabled": true
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Legacy/Utility Endpoints",
+      "item": [
+        {
+          "name": "Calculate Final Grade (Legacy)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/grading/calculate/{{studentId}}/{{offeringId}}",
               "host": ["{{baseUrl}}"],
               "path": ["grading", "calculate", "{{studentId}}", "{{offeringId}}"]
+            },
+            "description": "DEPRECATED: Use POST /grades endpoint instead. Returns calculated grade without saving."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Variables & Prerequisites",
+      "item": [
+        {
+          "name": "Set Authentication Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.environment.set('token', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
             }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"instructor@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login to obtain JWT token for subsequent requests"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+    },
+     {
+      "name": "Module Offerings",
+      "description": "Endpoints for managing module offerings (course sections)",
+      "item": [
+        {
+          "name": "Get All Offerings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/offerings?batch_id={{batchId}}&module_id={{moduleId}}&instructor_id={{instructorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["offerings"],
+              "query": [
+                { "key": "batch_id", "value": "{{batchId}}", "description": "Filter by batch ID", "disabled": true },
+                { "key": "module_id", "value": "{{moduleId}}", "description": "Filter by module ID", "disabled": true },
+                { "key": "instructor_id", "value": "{{instructorId}}", "description": "Filter by instructor ID", "disabled": true }
+              ]
+            },
+            "description": "Get all module offerings with optional filters. Required permission: view_offering"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Offering By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/offerings/{{offeringId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["offerings", "{{offeringId}}"]
+            },
+            "description": "Get a specific module offering by ID. Required permission: view_offering"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Offering",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"module_id\": 1,\n  \"batch_id\": 1,\n  \"section_code\": \"A\",\n  \"instructor_id\": 1,\n  \"capacity\": 30\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/offerings",
+              "host": ["{{baseUrl}}"],
+              "path": ["offerings"]
+            },
+            "description": "Create a new module offering. Required permission: manage_offering\n\nFields:\n- module_id: ID of the module (required)\n- batch_id: ID of the batch (required)\n- section_code: Section identifier like 'A', 'B', 'C' (required)\n- instructor_id: ID of the instructor (optional)\n- capacity: Maximum number of students (optional, default may be set)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Offering",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"section_code\": \"B\",\n  \"instructor_id\": 2,\n  \"capacity\": 35,\n  \"batch_id\": 1,\n  \"module_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/offerings/{{offeringId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["offerings", "{{offeringId}}"]
+            },
+            "description": "Update a module offering. Required permission: manage_offering\n\nUpdatable fields:\n- section_code\n- instructor_id\n- capacity\n- batch_id\n- module_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Offering",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/offerings/{{offeringId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["offerings", "{{offeringId}}"]
+            },
+            "description": "Delete a module offering. Required permission: manage_offering\n\nNote: Cannot delete an offering that has students enrolled. Drop all students first."
           },
           "response": []
         }

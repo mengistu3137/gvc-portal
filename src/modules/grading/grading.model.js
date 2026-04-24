@@ -14,10 +14,10 @@ export class Assessment extends Model {}
 Assessment.init({
   assessment_id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
 
-  offering_id: {
+  batch_id: {   // ✅ CHANGE HERE
     type: DataTypes.BIGINT.UNSIGNED,
     allowNull: false,
-    references: { model: 'module_offerings', key: 'offering_id' }
+    references: { model: 'batches', key: 'batch_id' }
   },
 
   name: { type: DataTypes.STRING, allowNull: false },
@@ -257,8 +257,11 @@ StudentGpaRecord.init({
 // ASSOCIATIONS
 // ----------------------
 
-ModuleOffering.hasMany(Assessment, { foreignKey: 'offering_id', as: 'assessments' });
-Assessment.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
+// ModuleOffering.hasMany(Assessment, { foreignKey: 'offering_id', as: 'assessments' });
+// Assessment.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
+
+Batch.hasMany(Assessment, { foreignKey: 'batch_id', as: 'assessments' });
+Assessment.belongsTo(Batch, { foreignKey: 'batch_id' });
 
 Assessment.hasMany(StudentAssessmentScore, { foreignKey: 'assessment_id' });
 StudentAssessmentScore.belongsTo(Assessment, { foreignKey: 'assessment_id' });
@@ -272,10 +275,11 @@ StudentResult.belongsTo(Student, { foreignKey: 'student_pk' });
 ModuleOffering.hasMany(StudentResult, { foreignKey: 'offering_id', as: 'results' });
 StudentResult.belongsTo(ModuleOffering, { foreignKey: 'offering_id', as: 'module_offering' });
 
-GradeSubmission.belongsTo(ModuleOffering, { foreignKey: 'offering_id' });
-GradeSubmission.belongsTo(Staff, { foreignKey: 'instructor_id' });
+GradeSubmission.belongsTo(ModuleOffering, { foreignKey: 'offering_id', as: 'module_offering' });
+GradeSubmission.belongsTo(Staff, { foreignKey: 'instructor_id', as: 'instructor' });
 
-ModuleOffering.hasMany(GradeSubmission, { foreignKey: 'offering_id' });
+ModuleOffering.hasMany(GradeSubmission, { foreignKey: 'offering_id', as: 'grade_submissions' });
+Staff.hasMany(GradeSubmission, { foreignKey: 'instructor_id', as: 'grade_submissions' });
 
 SubmissionItem.belongsTo(GradeSubmission, { foreignKey: 'submission_id' });
 SubmissionItem.belongsTo(StudentResult, { foreignKey: 'result_id' });

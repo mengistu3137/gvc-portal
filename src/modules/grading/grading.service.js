@@ -15,116 +15,144 @@ import { Module, Batch, Level, Occupation, AcademicYear } from '../academics/aca
 import { Student } from '../students/student.model.js';
 
 class GradingService {
+  formatSubmissionForView(submission) {
+    if (!submission) return null;
+
+    const row = typeof submission.toJSON === 'function'
+      ? submission.toJSON()
+      : submission;
+
+    return {
+      ...row,
+      offering: row.module_offering || row.offering || null,
+      instructor: row.instructor || null
+    };
+  }
+
   // ---------------------------------------------------------
   // 1. GRADE ENTRY (Fixed Associations & Fields)
   // ---------------------------------------------------------
 
-  async upsertStudentGrade(payload, user) {
-    const { student_pk, offering_id, assessment_scores = [], attempt_no = 1 } = payload;
+  async upsertStudentGrade(payload) {
+  const { student_pk, offering_id, scores = [], attempt_no = 1 } = payload;
 
-    return sequelize.transaction(async (transaction) => {
-      // 1. Fetch Offering with Module (to get credit_units for GPA later)
-      const offering = await ModuleOffering.findByPk(offering_id, {
-        include: [
-          { 
-            model: Module, 
-            as: 'module',
-            attributes: ['module_id', 'm_code', 'unit_competency', 'credit_units'] 
-          },
-          {
-            model: Batch,
-            as: 'batch', // Assuming this association exists in enrollment.model.js
-            attributes: ['batch_id', 'level_id']
-          }
-        ],
-        transaction,
-      });
+  return sequelize.transaction(async (transaction) => {
 
-      if (!offering) throw new Error('Module offering not found');
-      if (!offering.module) throw new Error('Module details not found for this offering');
+    // 1. Get offering with batch
+    const offering = await ModuleOffering.findByPk(offering_id, {
+      include: [{ model: Batch, as: 'batch' }],
+      transaction
+    });
 
-      // 2. Manage Assessments & Scores
-      const assessments = [];
-      for (const row of assessment_scores) {
-        // Find or create assessment definition
-        const [assessment] = await Assessment.findOrCreate({
-          where: { offering_id, name: row.name },
-          defaults: { weight: Number(row.weight || 0) },
-          transaction,
-        });
+    if (!offering || !offering.batch) {
+      throw new Error("Batch not found for this offering");
+    }
 
-        // Update weight if it changed
-        if (row.weight && Number(row.weight) !== Number(assessment.weight)) {
-          await assessment.update({ weight: Number(row.weight) }, { transaction });
-        }
+    // 2. Get assessments (from batch)
+    const assessments = await Assessment.findAll({
+      where: { batch_id: offering.batch.batch_id },
+      order: [['assessment_id', 'ASC']],
+      transaction
+    });
 
-        // Save Student Score
-        await StudentAssessmentScore.upsert(
-          {
-            student_pk,
-            assessment_id: assessment.assessment_id,
-            score: Number(row.score || 0),
-          },
-          { transaction }
-        );
-        
-        assessments.push({ assessment, score: Number(row.score || 0) });
+    if (!assessments.length) {
+      throw new Error("No assessments configured for this batch");
+    }
+
+    // 3. Validate input count
+    if (scores.length !== assessments.length) {
+      throw new Error("Scores must match number of assessments");
+    }
+
+    let total = 0;
+
+    for (const assessment of assessments) {
+      const input = scores.find(s => s.name === assessment.name);
+
+      if (!input) {
+        throw new Error(`Missing score for ${assessment.name}`);
       }
 
-      // 3. Calculate Total Weighted Score
-      const totalWeighted = assessments.reduce((sum, item) => {
-        const weight = Number(item.assessment.weight || 0);
-        return sum + (item.score * weight) / 100;
-      }, 0);
+      const score = Number(input.score);
+      const max = Number(assessment.weight);
 
-      // 4. Determine Letter Grade & Status
-      const gradeScale = await GradeScale.findAll({ order: [['min_score', 'ASC']], transaction });
-      const fallbackScale = [
-        { min_score: 85, max_score: 100, letter: 'A', grade_point: 4.0, is_pass: true },
-        { min_score: 75, max_score: 84.99, letter: 'B', grade_point: 3.0, is_pass: true },
-        { min_score: 65, max_score: 74.99, letter: 'C', grade_point: 2.0, is_pass: true },
-        { min_score: 50, max_score: 64.99, letter: 'D', grade_point: 1.0, is_pass: true },
-        { min_score: 0, max_score: 49.99, letter: 'F', grade_point: 0, is_pass: false },
-      ];
+      // ✅ Validate score
+      if (score < 0 || score > max) {
+        throw new Error(`${assessment.name} must be between 0 and ${max}`);
+      }
 
-      const activeScale = gradeScale.length ? gradeScale : fallbackScale;
-      const matchedScale = activeScale.find((scale) => {
-        const min = Number(scale.min_score);
-        const max = Number(scale.max_score);
-        return totalWeighted >= min && totalWeighted <= max;
-      });
+      // 4. Save score (CORRECT)
+      await StudentAssessmentScore.upsert(
+        {
+          student_pk,
+          assessment_id: assessment.assessment_id,
+          score
+        },
+        { transaction }
+      );
 
-      const letter_grade = matchedScale?.letter || 'F';
-      const grade_point = Number(matchedScale?.grade_point || 0);
-      const is_pass = typeof matchedScale?.is_pass === 'boolean' ? matchedScale.is_pass : grade_point > 0;
+      total += score;
+    }
 
-      // 5. Upsert Final Result
-      const [result] = await StudentResult.findOrCreate({
-        where: { student_pk, offering_id, attempt_no },
-        defaults: {
-          total_score: totalWeighted,
+    const total_score = total;
+
+    // 5. Grade scale
+    const gradeScale = await GradeScale.findAll({ transaction });
+
+    const matched = gradeScale.find(
+      g => total_score >= g.min_score && total_score <= g.max_score
+    );
+
+    const letter_grade = matched?.letter || "F";
+    const grade_point = matched?.grade_point || 0;
+    const status = matched?.is_pass ?? (grade_point > 0);
+
+    // 6. Save result
+    const [result] = await StudentResult.findOrCreate({
+      where: { student_pk, offering_id, attempt_no },
+      defaults: {
+        total_score,
+        letter_grade,
+        grade_point,
+        status: status ? 'PASSED' : 'FAILED'
+      },
+      transaction
+    });
+
+    if (!result.isNewRecord) {
+      await result.update(
+        {
+          total_score,
           letter_grade,
           grade_point,
-          status: is_pass ? 'PASSED' : 'FAILED',
+          status: status ? 'PASSED' : 'FAILED'
         },
-        transaction,
-      });
+        { transaction }
+      );
+    }
 
-      if (!result.isNewRecord) {
-        await result.update(
-          {
-            total_score: totalWeighted,
-            letter_grade,
-            grade_point,
-            status: is_pass ? 'PASSED' : 'FAILED',
-          },
-          { transaction }
-        );
-      }
+    return result;
+  });
+}
 
-      return result;
-    });
+  async listAssessmentsByOffering(offering_id) {
+  // 1. Get offering with batch
+  const offering = await ModuleOffering.findByPk(offering_id, {
+    include: [{ model: Batch, as: 'batch' }]
+  });
+
+  if (!offering || !offering.batch) {
+    throw new Error("Batch not found for this offering");
   }
+
+  // 2. Get assessments for batch
+  const rows = await Assessment.findAll({
+    where: { batch_id: offering.batch.batch_id },
+    order: [['assessment_id', 'ASC']]
+  });
+
+  return rows;
+}
 
   async upsertStudentGradesBulk(rows, user) {
     const results = [];
@@ -324,13 +352,17 @@ class GradingService {
     if (!offering) throw new Error('Offering not found');
 
     const students = await Student.findAll({
-      attributes: ['student_pk', 'first_name', 'last_name', 'id_number'],
+      attributes: ['student_pk', 'student_id'],
       include: [
         {
           model: StudentResult,
-          as: 'results', 
           where: { offering_id },
-          required: false 
+          required: false
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: ['first_name', 'last_name']
         }
       ]
     });
@@ -343,7 +375,15 @@ class GradingService {
     return {
       offering,
       assessments,
-      students
+      students: students.map((student) => {
+        const row = student.toJSON();
+        const fullName = [row.user?.first_name, row.user?.last_name].filter(Boolean).join(' ');
+
+        return {
+          ...row,
+          full_name: fullName || null
+        };
+      })
     };
   }
 }

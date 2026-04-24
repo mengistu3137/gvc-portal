@@ -28,6 +28,12 @@ export  function ApprovalsTab({ refreshData }) {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(null); // Track specific submission action
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [rejectComment, setRejectComment] = useState('');
 
   const fetchSubmissions = async () => {
     setIsLoading(true);
@@ -36,7 +42,6 @@ export  function ApprovalsTab({ refreshData }) {
         
         params: { status: filterStatus === 'ALL' ? undefined : filterStatus } 
       });
-        console.log("submissiion",res)
       setSubmissions(res.payload || []);
     } catch (error) {
       toast.error("Failed to load submissions");
@@ -45,7 +50,40 @@ export  function ApprovalsTab({ refreshData }) {
     }
   };
 
+  const fetchSubmissionDetail = async (submission) => {
+    if (!submission) return;
+    const offeringId = submission.offering?.offering_id || submission.offering_id;
+    if (!offeringId) {
+      setDetailError('Offering not found for this submission.');
+      return;
+    }
+
+    setDetailLoading(true);
+    setDetailError(null);
+    try {
+      const res = await api.get(`/grading/sheet/${offeringId}`);
+      setDetailData(res.payload || null);
+    } catch (error) {
+      setDetailError(error.message || 'Failed to load submission details');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openDetail = (submission) => {
+    setSelectedSubmission(submission);
+    setDetailData(null);
+    setRejectComment('');
+    setDetailOpen(true);
+    fetchSubmissionDetail(submission);
+  };
+
   const handleApproval = async (submissionId, action) => {
+    if (action === 'REJECTED' && !rejectComment.trim()) {
+      toast.error('Rejection comment is required');
+      return;
+    }
+
     setActionLoading(submissionId);
     try {
       // Determine Role based on user logic (Mocked here as 'REGISTRAR')
@@ -53,7 +91,8 @@ export  function ApprovalsTab({ refreshData }) {
       
       await api.put(`/grading/submissions/${submissionId}/approve`, {
         status: action, // 'APPROVED' or 'REJECTED'
-        role: userRole
+        role: userRole,
+        note: action === 'REJECTED' ? rejectComment.trim() : undefined
       });
       
       toast.success(`Submission ${action} successfully`);
@@ -70,9 +109,9 @@ export  function ApprovalsTab({ refreshData }) {
   const filteredSubmissions = submissions.filter(sub => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
-    const instructor = sub.instructor?.user?.full_name || '';
-    const module = sub.offering?.module?.m_code || '';
-    const batch = sub.offering?.batch?.batch_code || '';
+    const instructor = (sub.instructor?.user?.full_name || '').toLowerCase();
+    const module = (sub.offering?.module?.m_code || '').toLowerCase();
+    const batch = (sub.offering?.batch?.batch_code || '').toLowerCase();
     return instructor.includes(term) || module.includes(term) || batch.includes(term);
   });
 
@@ -83,6 +122,17 @@ export  function ApprovalsTab({ refreshData }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <h3 className="text-lg font-bold text-slate-800">Pending Approvals</h3>
         <div className="flex gap-2 w-full sm:w-auto">
+          <select
+            className="h-9 px-3 rounded-md border border-border-strong text-sm bg-white"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="ALL">All</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="DRAFT">Draft</option>
+          </select>
           <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input 
@@ -131,6 +181,13 @@ export  function ApprovalsTab({ refreshData }) {
                   
                   <div className="flex items-center gap-3 self-start sm:self-center">
                     <StatusBadge status={sub.status} />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openDetail(sub)}
+                    >
+                      View
+                    </Button>
                     {sub.status === 'SUBMITTED' && (
                       <div className="flex gap-2">
                         <Button 
@@ -159,6 +216,130 @@ export  function ApprovalsTab({ refreshData }) {
           </div>
         )}
       </div>
+
+      {detailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-ink/40 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-4xl rounded-xl shadow-panel max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-border-strong flex items-center justify-between">
+              <div>
+                <div className="text-lg font-bold text-brand-ink">Submission Detail</div>
+                <div className="text-xs text-slate-500">
+                  {selectedSubmission?.offering?.module?.m_code || 'Module'} • {selectedSubmission?.offering?.batch?.batch_code || 'Batch'}
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setDetailOpen(false)}>Close</Button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {detailLoading && (
+                <div className="text-center text-slate-400 py-8">Loading submission details...</div>
+              )}
+
+              {!detailLoading && detailError && (
+                <div className="text-center text-red-500 py-8">{detailError}</div>
+              )}
+
+              {!detailLoading && !detailError && detailData && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="text-xs text-slate-500">Instructor</div>
+                      <div className="font-semibold text-slate-800">
+                        {selectedSubmission?.instructor?.user?.full_name || 'Unknown'}
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="text-xs text-slate-500">Submission Status</div>
+                      <div className="font-semibold text-slate-800">{selectedSubmission?.status || 'UNKNOWN'}</div>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="text-xs text-slate-500">Submitted</div>
+                      <div className="font-semibold text-slate-800">
+                        {selectedSubmission?.created_at ? new Date(selectedSubmission.created_at).toLocaleString() : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-bold text-slate-700 mb-2">Assessments</div>
+                    {detailData.assessments?.length ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {detailData.assessments.map(ass => (
+                          <div key={ass.assessment_id} className="border border-slate-200 rounded-lg p-2">
+                            <div className="text-xs text-slate-500">{ass.name}</div>
+                            <div className="text-sm font-semibold text-slate-800">{ass.weight}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-400">No assessments found.</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-bold text-slate-700 mb-2">Students</div>
+                    {detailData.students?.length ? (
+                      <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-lg">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                              <th className="p-2 text-left">Student</th>
+                              <th className="p-2 text-left">ID</th>
+                              <th className="p-2 text-left">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {detailData.students.map(student => (
+                              <tr key={student.student_pk}>
+                                <td className="p-2">{student.full_name || 'Unknown'}</td>
+                                <td className="p-2 text-xs text-slate-500">{student.student_id}</td>
+                                <td className="p-2 text-xs">{student.enrollment_status || 'N/A'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-400">No students found.</div>
+                    )}
+                  </div>
+
+                  {selectedSubmission?.status === 'SUBMITTED' && (
+                    <div className="border-t border-slate-200 pt-4 space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500">Rejection Comment (required to reject)</label>
+                        <Input
+                          value={rejectComment}
+                          onChange={(e) => setRejectComment(e.target.value)}
+                          placeholder="Provide rejection reason"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          className="text-red-600 hover:bg-red-50"
+                          onClick={() => handleApproval(selectedSubmission.submission_id, 'REJECTED')}
+                          disabled={actionLoading === selectedSubmission.submission_id}
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleApproval(selectedSubmission.submission_id, 'APPROVED')}
+                          disabled={actionLoading === selectedSubmission.submission_id}
+                        >
+                          Approve
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

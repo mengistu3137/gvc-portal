@@ -4,7 +4,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { AcademicExplorer } from './pages/AcademicExplorer';
 import { EnrollmentManager } from './pages/EnrollmentManager';
 import { GradeApprovalDashboard } from './pages/GradeApprovalDashboard';
-import { GradeEntry } from './pages/GradeEntry';
+// import { GradeEntry } from './pages/GradeEntry';
 import { InstructorManager } from './pages/InstructorManager';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SectorOccupationManager } from './pages/SectorOccupationManager';
@@ -15,6 +15,7 @@ import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { ResetPassword } from './pages/auth/ResetPassword';
 import { AcademicManager } from './pages/AcademicManager';
 import { GradingManager } from './pages/GradingManager';
+
 
 function App() {
   return (
@@ -121,13 +122,13 @@ function App() {
                   }
                 />
 
-                <Route
+             {/*    <Route
                   path="/grade-entry"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN', 'INSTRUCTOR']}>
                       <GradeEntry />
                     </ProtectedRoute>}
-                />
+                /> */}
 
                 {/* Explorer - Generally accessible to authenticated users */}
                 <Route path="/academic-explorer" element={<AcademicExplorer />} />

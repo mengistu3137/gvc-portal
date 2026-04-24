@@ -5,7 +5,7 @@ import { GraduationCap, Search, Save, X } from 'lucide-react'; // Added Search a
 import { toast } from 'react-hot-toast';
 import { api } from '../../lib/api';
 
-export default function GradeEntryTab({ refreshData }) {
+export  function GradeEntryTab({ refreshData }) {
   // --- State ---
   const [offerings, setOfferings] = useState([]);
   const [selectedOffering, setSelectedOffering] = useState(null);
